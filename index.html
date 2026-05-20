@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zeiterfassung">
+<meta name="theme-color" content="#0d0d0d">
+<title>Zeiterfassung</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0d;--s1:#1a1a1a;--s2:#252525;--s3:#333333;
+  --b1:rgba(255,255,255,.12);--b2:rgba(255,255,255,.2);--b3:rgba(255,255,255,.22);
+  --tx:#efefef;--tx2:#aaaaaa;--tx3:#666;
+  --acc:#c8f060;--acc2:rgba(200,240,96,.1);--acc3:rgba(200,240,96,.18);
+  --inf:#60c8f0;--inf2:rgba(96,200,240,.1);
+  --dan:#f06060;--dan2:rgba(240,96,96,.1);--ora:#f0a060;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --r:10px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none;background:var(--bg)}
+body{font-family:var(--sans);color:var(--tx);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:var(--sans);font-size:14px}
+
+.app{display:flex;flex-direction:column;height:100dvh;max-width:560px;margin:0 auto;position:relative}
+.topbar{padding:calc(var(--safe-t) + 14px) 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);flex-shrink:0;background:var(--bg)}
+.topbar-brand{font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--tx2);text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-date{font-family:var(--mono);font-size:11px;color:var(--tx3)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:.3s}
+.sync-dot.ok{background:var(--acc)}
+.sync-dot.err{background:var(--dan)}
+.sync-dot.spin{background:var(--ora);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:rgba(13,13,13,.96);backdrop-filter:blur(20px);border-top:1px solid var(--b1);display:flex;padding:8px 0 calc(var(--safe-b) + 6px);z-index:100}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;border:none;background:transparent;color:var(--tx3);cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;font-family:var(--sans);transition:.2s}
+.nav-btn svg{width:20px;height:20px;stroke-width:1.6;transition:.2s}
+.nav-btn.on{color:var(--acc)}
+.nav-btn.on svg{stroke:var(--acc)}
+
+.content{flex:1;overflow-y:auto;padding:0 0 calc(var(--safe-b) + 70px)}
+.view{display:none;padding:16px 18px}
+.view.on{display:block}
+
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.slabel{font-family:var(--mono);font-size:10px;color:var(--tx3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.slabel::after{content:'';flex:1;height:1px;background:var(--b1)}
+
+.f{margin-bottom:12px}
+.f label{display:block;font-size:11px;color:var(--tx2);margin-bottom:4px;font-weight:500;letter-spacing:.3px}
+.f input,.f select,.f textarea{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:8px;color:var(--tx);padding:9px 11px;transition:.15s;-webkit-appearance:none;appearance:none}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:rgba(200,240,96,.35);background:var(--s3)}
+.f textarea{resize:vertical;min-height:64px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+.timer-hero{text-align:center;padding:24px 0 16px}
+.timer-num{font-family:var(--mono);font-size:clamp(52px,16vw,80px);font-weight:300;letter-spacing:-3px;line-height:1;color:var(--tx);transition:.4s}
+.timer-num.run{color:var(--acc)}
+.timer-num.paused{color:var(--ora)}
+.timer-sub{font-family:var(--mono);font-size:11px;color:var(--tx3);letter-spacing:2px;margin-top:6px;text-transform:uppercase;min-height:16px}
+.tbtns{display:flex;gap:8px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+.tbtn{height:44px;padding:0 20px;border-radius:50px;border:1px solid var(--b2);background:transparent;color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s;font-family:var(--sans)}
+.tbtn:active{transform:scale(.95)}
+.tbtn.go{background:var(--acc);color:#0d0d0d;border-color:var(--acc);font-weight:600}
+.tbtn.stop{border-color:var(--dan);color:var(--dan)}
+.tbtn svg{width:15px;height:15px;stroke-width:2.2}
+
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.met{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:12px 14px}
+.met-l{font-family:var(--mono);font-size:9px;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.met-v{font-family:var(--mono);font-size:20px;font-weight:300}
+.met-v.hi{color:var(--acc)}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--b2);background:transparent;color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;font-family:var(--sans)}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--acc);color:#0d0d0d;border-color:var(--acc);font-weight:600}
+.btn.sml{padding:6px 11px;font-size:12px}
+.btn.dan{color:var(--dan);border-color:var(--dan2)}
+.btn.inf{color:var(--inf);border-color:var(--inf2)}
+.btn svg{width:14px;height:14px;stroke-width:2;flex-shrink:0}
+.brow{display:flex;gap:7px;flex-wrap:wrap}
+
+.mlist{list-style:none}
+.mitem{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--b1);gap:12px}
+.mitem:last-child{border:none}
+.m-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:500;flex-shrink:0;color:#0d0d0d}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-email{font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-actions{display:flex;gap:6px}
+.call-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--b2);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;flex-shrink:0;text-decoration:none}
+.call-btn:active{transform:scale(.92)}
+.call-btn.phone{border-color:rgba(200,240,96,.3);background:var(--acc2)}
+.call-btn svg{width:16px;height:16px;stroke-width:1.8}
+.search-bar{position:relative;margin-bottom:12px}
+.search-bar input{background:var(--s2);border:1px solid var(--b1);border-radius:8px;color:var(--tx);padding:9px 11px 9px 36px;width:100%}
+.search-bar svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--tx3);stroke-width:1.8}
+
+.eitem{padding:12px 0;border-bottom:1px solid var(--b1)}
+.eitem:last-child{border:none}
+.etop{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;gap:8px}
+.eproj{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;min-width:0}
+.edot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ehrs{font-family:var(--mono);font-size:12px;color:var(--tx2);flex-shrink:0}
+.ebot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.edesc{font-size:12px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emeta{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.edate{font-family:var(--mono);font-size:11px;color:var(--tx3)}
+.eamt{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--acc)}
+.badge{display:inline-flex;padding:2px 6px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.bv{background:var(--acc2);color:var(--acc)}.ba{background:var(--inf2);color:var(--inf)}.bn{background:var(--s3);color:var(--tx3)}
+.xbtn{background:var(--dan2);border:none;color:var(--dan);border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;font-family:var(--sans)}
+
+.pcard{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:13px 14px;margin-bottom:9px;border-left:3px solid transparent}
+.phead{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.pname{font-size:14px;font-weight:500}.pclient{font-size:11px;color:var(--tx3);margin-top:1px}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.ps-v{font-family:var(--mono);font-size:13px}.ps-l{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+.pbar{height:2px;background:var(--s3);border-radius:2px;margin-top:7px;overflow:hidden}
+.pfill{height:100%;border-radius:2px;transition:.5s}
+
+.crow{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px}
+.csw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.12s;flex-shrink:0}
+.csw.sel{border-color:#fff;transform:scale(1.15)}
+
+.iline{display:flex;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--b1);font-size:12px;gap:8px}
+.iline:last-child{border:none}
+.il-date{font-family:var(--mono);font-size:11px;color:var(--tx2);min-width:65px;flex-shrink:0}
+.il-desc{flex:1;color:var(--tx2)}.il-h{font-family:var(--mono);font-size:11px;color:var(--tx3);min-width:52px;text-align:right;flex-shrink:0}
+.il-amt{font-family:var(--mono);font-weight:500;min-width:70px;text-align:right;flex-shrink:0}
+.itotal{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-weight:500}
+.isub{font-size:12px;color:var(--tx2)}
+
+.fbar{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+.fbar::-webkit-scrollbar{display:none}
+.fchip{padding:5px 12px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s;font-family:var(--sans);letter-spacing:.3px}
+.fchip.on{background:var(--acc2);color:var(--acc);border-color:rgba(200,240,96,.4)}
+
+
+
+/* EMAIL */
+.email-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-bottom:10px;transition:.15s}
+.email-card.mandant{border-left:3px solid var(--acc)}
+.email-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;gap:8px}
+.email-from{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.email-time{font-family:var(--mono);font-size:11px;color:var(--tx3);flex-shrink:0}
+.email-subject{font-size:12px;color:var(--tx2);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.email-summary{font-size:11px;color:var(--tx3);line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.email-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.email-mandant-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:var(--acc2);color:var(--acc);border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.3px}
+.email-mandant-dot{width:6px;height:6px;border-radius:50%}
+.email-time-input{width:60px;background:var(--s2);border:1px solid var(--b1);border-radius:6px;color:var(--tx);padding:5px 8px;font-size:12px;font-family:var(--mono);text-align:center}
+
+
+
+
+/* USER SYSTEM */
+.user-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);letter-spacing:.5px}
+.user-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:#0d0d0d}
+.admin-bar{background:rgba(200,240,96,.08);border:1px solid rgba(200,240,96,.2);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.user-filter-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;scrollbar-width:none}
+.user-filter-row::-webkit-scrollbar{display:none}
+.user-chip{padding:4px 12px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s;font-family:var(--mono)}
+.user-chip.on{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+
+/* CONTACTS MODAL */
+.contacts-modal{background:var(--s1);border:1px solid var(--b2);border-radius:16px 16px 0 0;padding:20px 20px calc(var(--safe-b) + 20px);width:100%;max-width:560px;transform:translateY(30px);transition:.25s;max-height:80vh;overflow-y:auto}
+.modal-bg.show .contacts-modal{transform:translateY(0)}
+.contact-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--b1)}
+.contact-item:last-child{border:none}
+.contact-avatar{width:32px;height:32px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--tx2);flex-shrink:0}
+.contact-info{flex:1;min-width:0}
+.contact-name{font-size:13px;font-weight:500}
+.contact-detail{font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contact-actions{display:flex;gap:6px}
+
+/* TASK TYPES */
+.task-chip.intern{border-color:rgba(96,200,240,.3);color:var(--inf)}
+.task-chip.intern.sel{background:var(--inf2);color:var(--inf);border-color:rgba(96,200,240,.5)}
+
+.task-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.task-chip{padding:5px 11px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s;font-family:var(--sans);letter-spacing:.3px}
+.task-chip.sel{background:var(--acc2);color:var(--acc);border-color:rgba(200,240,96,.4)}
+
+/* AUTOCOMPLETE */
+.ac-wrap{position:relative}
+.ac-input{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:8px;color:var(--tx);padding:9px 11px;transition:.15s;-webkit-appearance:none;appearance:none;font-size:14px;font-family:var(--sans)}
+.ac-input:focus{outline:none;border-color:rgba(200,240,96,.35);background:var(--s3)}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:var(--s2);border:1px solid var(--b2);border-radius:8px;margin-top:4px;z-index:500;max-height:220px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ac-drop.show{display:block}
+.ac-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--b1);transition:.1s}
+.ac-item:last-child{border:none}
+.ac-item:hover,.ac-item.sel{background:var(--s3)}
+.ac-item-name{font-size:13px;font-weight:500}
+.ac-item-client{font-size:11px;color:var(--tx3);margin-top:1px}
+.ac-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px;flex-shrink:0}
+
+/* CALL MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:.25s;backdrop-filter:blur(4px)}
+.modal-bg.show{opacity:1;pointer-events:auto}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:16px 16px 0 0;padding:20px 20px calc(var(--safe-b) + 20px);width:100%;max-width:560px;transform:translateY(30px);transition:.25s}
+.modal-bg.show .modal{transform:translateY(0)}
+.modal-title{font-family:var(--mono);font-size:11px;color:var(--tx3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:var(--s3);border:none;color:var(--tx2);border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.call-name{font-size:18px;font-weight:500;margin-bottom:3px}
+.call-email{font-size:12px;color:var(--tx3);margin-bottom:16px}
+.call-timer{font-family:var(--mono);font-size:40px;font-weight:300;letter-spacing:-2px;text-align:center;padding:12px 0;color:var(--acc)}
+.toggle-row{display:flex;align-items:center;gap:8px;padding:5px 0}
+.toggle-row label{font-size:13px;color:var(--tx);margin:0;cursor:pointer}
+
+/* SETUP SCREEN */
+.setup-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px}
+.setup-box{width:100%;max-width:440px}
+.setup-logo{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--tx3);text-transform:uppercase;margin-bottom:32px}
+.setup-title{font-size:22px;font-weight:500;margin-bottom:8px}
+.setup-sub{font-size:13px;color:var(--tx2);line-height:1.6;margin-bottom:28px}
+.setup-step{display:flex;gap:12px;margin-bottom:16px;align-items:flex-start}
+.setup-num{font-family:var(--mono);font-size:11px;color:var(--acc);border:1px solid rgba(200,240,96,.3);border-radius:4px;padding:2px 6px;flex-shrink:0;margin-top:2px}
+.setup-step p{font-size:13px;color:var(--tx2);line-height:1.6}
+.setup-step code{font-family:var(--mono);font-size:11px;background:var(--s2);padding:1px 5px;border-radius:3px;color:var(--acc)}
+.setup-divider{border:none;border-top:1px solid var(--b1);margin:24px 0}
+
+.empty{text-align:center;padding:36px 16px;color:var(--tx3)}
+.empty svg{width:36px;height:36px;display:block;margin:0 auto 10px;opacity:.25}
+
+.toast{position:fixed;bottom:calc(var(--safe-b) + 82px);left:50%;transform:translateX(-50%) translateY(8px);background:var(--s3);border:1px solid var(--b2);color:var(--tx);padding:9px 18px;border-radius:30px;font-size:12px;font-weight:500;z-index:300;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap;font-family:var(--mono);letter-spacing:.5px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(min-width:560px){.app,.nav{border-left:1px solid var(--b1);border-right:1px solid var(--b1)}}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setup-screen" style="display:none">
+  <div class="setup-box" style="overflow-y:auto;max-height:100vh;padding:20px">
+    <div class="setup-logo">Zeiterfassung · Cloud Setup</div>
+    <div class="setup-title">Supabase verbinden</div>
+    <div class="setup-sub">Einmalige Einrichtung – danach laufen alle Daten sicher in der Cloud.</div>
+
+    <div class="f"><label>Supabase Project URL</label><input type="url" id="setup-url" placeholder="https://xxxxx.supabase.co" autocomplete="off" autocorrect="off" autocapitalize="off"></div>
+    <div class="f"><label>Supabase anon Key</label><input type="text" id="setup-key" placeholder="eyJhbGci..." autocomplete="off" autocorrect="off" autocapitalize="off"></div>
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn pri" onclick="connectSupabase()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Verbinden & testen
+      </button>
+      <button class="btn" onclick="skipSetup()">Ohne Cloud starten</button>
+    </div>
+
+    <details style="margin-bottom:16px">
+      <summary style="font-size:12px;color:var(--tx3);cursor:pointer;margin-bottom:10px">Noch kein Supabase? Anleitung anzeigen</summary>
+      <div class="setup-step"><span class="setup-num">1</span><p>Auf <strong>supabase.com</strong> → neues Projekt anlegen → Region <code>EU West</code></p></div>
+      <div class="setup-step"><span class="setup-num">2</span><p><strong>SQL Editor</strong> → Code ausführen:</p></div>
+      <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px;margin-bottom:16px;font-family:var(--mono);font-size:10px;color:var(--tx2);line-height:1.8;overflow-x:auto">
+create table projects (id text primary key, name text, client text, email text, phone text, rate numeric, budget numeric, color text, created_at timestamptz default now());<br>
+create table entries (id text primary key, project_id text, date text, from_time text, to_time text, hours numeric, description text, billable boolean, billed boolean, amount numeric, is_call boolean, created_at timestamptz default now());<br>
+alter table projects enable row level security;<br>
+alter table entries enable row level security;<br>
+create policy "public" on projects for all using (true) with check (true);<br>
+create policy "public" on entries for all using (true) with check (true);
+      </div>
+      <div class="setup-step"><span class="setup-num">3</span><p><strong>Settings → API Keys → Legacy anon Key</strong> kopieren</p></div>
+    </details>
+  </div>
+</div>
+
+<div class="app">
+  <div class="topbar">
+    <span class="topbar-brand">Zeiterfassung</span>
+    <div class="topbar-right">
+      <span class="sync-dot" id="sync-dot" title="Cloud-Status"></span>
+      <span class="topbar-date" id="top-date"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- TIMER -->
+    <div class="view on" id="v-timer">
+      <div class="timer-hero">
+        <div class="timer-num" id="tdisp">00:00:00</div>
+        <div class="timer-sub" id="tsub"></div>
+      </div>
+      <div class="tbtns">
+        <button class="tbtn go" id="btn-start" onclick="toggleTimer()">
+          <svg id="ico-start" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span id="lbl-start">Starten</span>
+        </button>
+        <button class="tbtn stop" id="btn-stop" onclick="stopSave()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          Speichern
+        </button>
+      </div>
+      <div class="card">
+        <div class="slabel">Eintrag</div>
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Projekt / Mandant *</label>
+            <div class="ac-wrap">
+              <input type="text" class="ac-input" id="t-proj-ac" placeholder="Name oder Firma tippen..." oninput="acSearch('t-proj-ac','t-proj-drop','t-proj-val')" onfocus="acSearch('t-proj-ac','t-proj-drop','t-proj-val')" onblur="setTimeout(()=>acHide('t-proj-drop'),200)" autocomplete="off" autocorrect="off">
+              <input type="hidden" id="t-proj-val">
+              <div class="ac-drop" id="t-proj-drop"></div>
+            </div>
+          </div>
+          <div class="f" style="margin:0"><label>Datum</label><input type="date" id="t-date"></div>
+        </div>
+        <div class="g3" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Von</label><input type="time" id="t-from"></div>
+          <div class="f" style="margin:0"><label>Bis</label><input type="time" id="t-to"></div>
+          <div class="f" style="margin:0"><label>Std.</label><input type="number" id="t-hrs" placeholder="1.5" step="0.25" min="0"></div>
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--tx2);font-weight:500;display:block;margin-bottom:6px">Tätigkeitsart</label>
+          <div style="font-size:10px;color:var(--tx3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Mandant</div>
+          <div class="task-chips" id="task-chips">
+            <button class="task-chip" onclick="selectTask(this,'FiBu')">FiBu</button>
+            <button class="task-chip" onclick="selectTask(this,'Lohn')">Lohn</button>
+            <button class="task-chip" onclick="selectTask(this,'Jahresabschluss')">Jahresabschluss</button>
+            <button class="task-chip" onclick="selectTask(this,'Steuererklärung')">Steuererklärung</button>
+            <button class="task-chip" onclick="selectTask(this,'Beratung')">Beratung</button>
+            <button class="task-chip" onclick="selectTask(this,'Telefonat')">Telefonat</button>
+            <button class="task-chip" onclick="selectTask(this,'E-Mail')">E-Mail</button>
+            <button class="task-chip" onclick="selectTask(this,'WhatsApp')">WhatsApp</button>
+            <button class="task-chip" onclick="selectTask(this,'Post/E-Mail')">Post/E-Mail</button>
+            <button class="task-chip" onclick="selectTask(this,'Sonstiges')">Sonstiges</button>
+          </div>
+          <div style="font-size:10px;color:var(--tx3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin:8px 0 6px">Intern (nicht verrechenbar)</div>
+          <div class="task-chips">
+            <button class="task-chip intern" onclick="selectTask(this,'Akquise');setIntern()">Akquise</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Fortbildung');setIntern()">Fortbildung</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Buchhaltung intern');setIntern()">Buchhaltung intern</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Verwaltung');setIntern()">Verwaltung</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Pause');setIntern()">Pause</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Reise/Fahrzeit');setIntern()">Reise/Fahrzeit</button>
+            <button class="task-chip intern" onclick="selectTask(this,'FM-Fall Bearb.');setIntern()">FM-Fall Bearb.</button>
+            <button class="task-chip intern" onclick="selectTask(this,'EDV');setIntern()">EDV</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Entwicklung');setIntern()">Entwicklung</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Post/E-Mail intern');setIntern()">Post/E-Mail</button>
+            <button class="task-chip intern" onclick="selectTask(this,'Sonstiges intern');setIntern()">Sonstiges</button>
+          </div>
+        </div>
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Monat (Leistung für)</label>
+            <select id="t-period">
+              <option value="">– kein Zeitraum –</option>
+              <option value="01/2025">Januar 2025</option>
+              <option value="02/2025">Februar 2025</option>
+              <option value="03/2025">März 2025</option>
+              <option value="04/2025">April 2025</option>
+              <option value="05/2025">Mai 2025</option>
+              <option value="06/2025">Juni 2025</option>
+              <option value="07/2025">Juli 2025</option>
+              <option value="08/2025">August 2025</option>
+              <option value="09/2025">September 2025</option>
+              <option value="10/2025">Oktober 2025</option>
+              <option value="11/2025">November 2025</option>
+              <option value="12/2025">Dezember 2025</option>
+              <option value="01/2026">Januar 2026</option>
+              <option value="02/2026">Februar 2026</option>
+              <option value="03/2026">März 2026</option>
+              <option value="04/2026">April 2026</option>
+              <option value="05/2026">Mai 2026</option>
+              <option value="06/2026">Juni 2026</option>
+              <option value="07/2026">Juli 2026</option>
+              <option value="08/2026">August 2026</option>
+              <option value="09/2026">September 2026</option>
+              <option value="10/2026">Oktober 2026</option>
+              <option value="11/2026">November 2026</option>
+              <option value="12/2026">Dezember 2026</option>
+              <option value="2025">Jahresabschluss 2025</option>
+              <option value="2024">Jahresabschluss 2024</option>
+            </select>
+          </div>
+          <div class="f" style="margin:0"><label>Beschreibung (optional)</label><input type="text" id="t-desc-extra" placeholder="Weitere Details..."></div>
+        </div>
+        <input type="hidden" id="t-task-type">
+        <div class="f" style="margin-bottom:10px;display:none"><label>Tätigkeit (intern)</label><textarea id="t-desc" placeholder="Beratungsgespräch, Jahresabschluss..."></textarea></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div class="toggle-row">
+            <input type="checkbox" id="t-bill" checked style="accent-color:var(--acc)">
+            <label for="t-bill">Verrechenbar</label>
+          </div>
+          <button class="btn pri" onclick="saveEntry()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Speichern
+          </button>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="met"><div class="met-l">Heute</div><div class="met-v" id="m-today">0:00</div></div>
+        <div class="met"><div class="met-l">Woche</div><div class="met-v" id="m-week">0:00</div></div>
+        <div class="met"><div class="met-l">Monat</div><div class="met-v" id="m-month">0:00</div></div>
+        <div class="met"><div class="met-l">Offen €</div><div class="met-v hi" id="m-open">0,00</div></div>
+      </div>
+      <div class="slabel">Letzte Einträge</div>
+      <div class="card" style="padding:0 14px"><div id="recent-list"></div></div>
+    </div>
+
+    <!-- ANRUF -->
+    <div class="view" id="v-phone">
+      <div class="slabel">Mandanten &amp; Anruf-Timer</div>
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="msearch" placeholder="Mandant suchen..." oninput="renderMandants()">
+      </div>
+      <div class="card" style="padding:0 14px"><ul class="mlist" id="mand-list"></ul></div>
+      <div style="margin-top:10px">
+        <button class="btn" onclick="goTab('projects',document.querySelectorAll('.nav-btn')[3])">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+          Neuen Mandanten anlegen
+        </button>
+      </div>
+    </div>
+
+
+    <!-- E-MAIL ZEITTRACKING -->
+    <div class="view" id="v-email">
+      <div class="slabel">E-Mail Zeiterfassung</div>
+      <div class="card card-sm" style="margin-bottom:12px">
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Zeitraum</label>
+            <select id="email-range">
+              <option value="today">Heute</option>
+              <option value="yesterday">Gestern</option>
+              <option value="week" selected>Diese Woche</option>
+              <option value="custom">Benutzerdefiniert</option>
+            </select>
+          </div>
+          <div class="f" style="margin:0"><label>Nur Mandanten</label>
+            <select id="email-filter">
+              <option value="mandants">Nur Mandanten-Mails</option>
+              <option value="all">Alle E-Mails</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn pri" onclick="loadEmails()" id="email-load-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+          Outlook-Mails laden
+        </button>
+        <div id="email-status" style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--tx3)"></div>
+      </div>
+      <div id="email-list"></div>
+    </div>
+
+    <!-- EINTRÄGE -->
+    <div class="view" id="v-entries">
+      <div class="fbar">
+        <button class="fchip on" onclick="setF('all',this)">Alle</button>
+        <button class="fchip" onclick="setF('billable',this)">Verrechenbar</button>
+        <button class="fchip" onclick="setF('billed',this)">Abgerechnet</button>
+        <button class="fchip" onclick="setF('nonbillable',this)">Intern</button>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f" style="margin:0"><label>Projekt</label><select id="f-proj"></select></div>
+        <div class="f" style="margin:0"><label>Schnellfilter</label>
+          <select id="f-quick" onchange="applyQuickFilter()">
+            <option value="">– Zeitraum wählen –</option>
+            <option value="today">Heute</option>
+            <option value="yesterday">Gestern</option>
+            <option value="week">Diese Woche</option>
+            <option value="lastweek">Letzte Woche</option>
+            <option value="month">Dieser Monat</option>
+            <option value="lastmonth">Letzter Monat</option>
+            <option value="custom">Benutzerdefiniert</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="f" style="margin:0"><label>Von Datum</label><input type="date" id="f-from"></div>
+        <div class="f" style="margin:0"><label>Bis Datum</label><input type="date" id="f-to"></div>
+      </div>
+      <div class="brow" style="margin-bottom:14px">
+        <button class="btn" onclick="renderEntries()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Filtern</button>
+        <button class="btn inf" onclick="exportCSV('current')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Aktuelle Ansicht</button>
+        <button class="btn inf admin-only" onclick="exportCSV('all')" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Alle Mitarbeiter</button>
+      </div>
+      <!-- ADMIN: User filter -->
+      <div class="admin-only" id="user-filter-section" style="display:none">
+        <div class="admin-bar">
+          <span style="font-size:12px;color:var(--acc);font-weight:500">👑 Admin-Ansicht</span>
+          <span style="font-size:11px;color:var(--tx2)" id="team-summary"></span>
+        </div>
+        <div class="user-filter-row" id="user-filter-row">
+          <button class="user-chip on" onclick="setUserFilter('all',this)" style="border-color:var(--acc);color:var(--acc)">Alle</button>
+          <button class="user-chip" onclick="setUserFilter('stefan',this)" style="border-color:#c8f06044;color:#c8f060">Stefan</button>
+          <button class="user-chip" onclick="setUserFilter('ingrid',this)" style="border-color:#60c8f044;color:#60c8f0">Ingrid</button>
+          <button class="user-chip" onclick="setUserFilter('carina',this)" style="border-color:#f0a06044;color:#f0a060">Carina</button>
+          <button class="user-chip" onclick="setUserFilter('karin',this)" style="border-color:#a060f044;color:#a060f0">Karin</button>
+          <button class="user-chip" onclick="setUserFilter('susi',this)" style="border-color:#f0609044;color:#f06090">Susi</button>
+          <button class="user-chip" onclick="setUserFilter('andreas',this)" style="border-color:#60f0a044;color:#60f0a0">Andreas</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0 14px"><div id="elist"></div></div>
+      <div id="esum" style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--tx3);text-align:right"></div>
+    </div>
+
+    <!-- RECHNUNG -->
+    <div class="view" id="v-bill">
+      <div class="slabel">Rechnungsvorschau</div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="f"><label>Projekt / Mandant</label><select id="b-proj"></select></div>
+        <div class="g2">
+          <div class="f" style="margin-bottom:0"><label>Von</label><input type="date" id="b-from"></div>
+          <div class="f" style="margin-bottom:0"><label>Bis</label><input type="date" id="b-to"></div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn pri" onclick="genInv()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Vorschau
+          </button>
+        </div>
+      </div>
+      <div id="inv-out"></div>
+    </div>
+
+    <!-- PROJEKTE / EINSTELLUNGEN -->
+    <div class="view" id="v-projects">
+      <div class="slabel">Neues Projekt / Mandant</div>
+      <div class="card">
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Name *</label><input type="text" id="p-name" placeholder="Projektname"></div>
+          <div class="f" style="margin:0"><label>Mandant / Firma</label><input type="text" id="p-client" placeholder="Firma GmbH"></div>
+        </div>
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>E-Mail</label><input type="email" id="p-email" placeholder="info@firma.de"></div>
+          <div class="f" style="margin:0"><label>Telefon</label><input type="tel" id="p-phone" placeholder="+49 89 ..."></div>
+        </div>
+        <div class="g2" style="margin-bottom:10px">
+          <div class="f" style="margin:0"><label>Stundensatz (€)</label><input type="number" id="p-rate" placeholder="90" min="0" step="5"></div>
+          <div class="f" style="margin:0"><label>Budget (Std.)</label><input type="number" id="p-budget" placeholder="Optional" min="0"></div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;color:var(--tx2);font-weight:500;display:block;margin-bottom:5px">Farbe</label>
+          <div class="crow" id="cpick"></div>
+        </div>
+        <button class="btn pri" onclick="saveProjekt()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Anlegen
+        </button>
+      </div>
+
+      <div class="slabel">Mandanten importieren</div>
+      <div class="card" style="margin-bottom:10px">
+        <p style="font-size:12px;color:var(--tx2);margin-bottom:12px;line-height:1.6">Importiert alle 47 Mandanten aus deiner Excel-Liste. Einmalig klicken – dann sind alle in der App und Supabase.</p>
+        <button class="btn pri" onclick="importAllMandants()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          47 Mandanten importieren
+        </button>
+        <div id="import-status" style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--tx3)"></div>
+      </div>
+
+      <div class="slabel">Projekte</div>
+      <div id="plist"></div>
+
+      <div class="slabel" style="margin-top:4px">Cloud-Einstellungen</div>
+      <div class="card">
+        <div id="cloud-status-box" style="margin-bottom:12px;font-size:13px"></div>
+        <div class="f"><label>Supabase URL</label><input type="url" id="cfg-url" placeholder="https://xxx.supabase.co"></div>
+        <div class="f" style="margin-bottom:12px"><label>Supabase anon Key</label><input type="text" id="cfg-key" placeholder="eyJhbGci..."></div>
+        <div class="brow">
+          <button class="btn pri" onclick="saveCloudConfig()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>Speichern & verbinden
+          </button>
+          <button class="btn" onclick="manualSync()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Jetzt sync
+          </button>
+        </div>
+        <p style="font-size:11px;color:var(--tx3);margin-top:12px;line-height:1.7">
+          💡 Tipp: Diese HTML-Datei auf deinem OneDrive speichern und per Browser öffnen → die URL als Lesezeichen auf dem Handy-Homescreen ablegen (Safari: Teilen → Zum Homescreen).
+        </p>
+      </div>
+
+      <div class="slabel admin-only">Team-Links</div>
+      <div class="card admin-only" style="margin-bottom:10px">
+        <p style="font-size:12px;color:var(--tx2);margin-bottom:12px;line-height:1.6">Jeder Mitarbeiter öffnet seine persönliche URL. Nur du siehst alle Einträge.</p>
+        <div id="user-links"></div>
+      </div>
+
+      <div class="slabel">Backup</div>
+      <div class="card">
+        <div class="brow">
+          <button class="btn" onclick="exportBackup()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>JSON Export</button>
+          <label class="btn" style="cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            JSON Import<input type="file" accept=".json" style="display:none" onchange="importBackup(event)">
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn on" onclick="goTab('timer',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Timer
+    </button>
+    <button class="nav-btn" onclick="goTab('phone',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.94 3.28 2 2 0 0 1 3.92 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Anruf
+    </button>
+    <button class="nav-btn" onclick="goTab('email',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>E-Mail
+    </button>
+    <button class="nav-btn" onclick="goTab('entries',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Einträge
+    </button>
+    <button class="nav-btn" onclick="goTab('projects',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Einst.
+    </button>
+  </nav>
+</div>
+
+
+
+<!-- EDIT ENTRY MODAL -->
+<div class="modal-bg" id="edit-modal" onclick="closeEditModal(event)">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-title">
+      <span>Eintrag bearbeiten</span>
+      <button class="modal-close" onclick="dismissEdit()">✕</button>
+    </div>
+    <div class="f"><label>Projekt / Mandant</label>
+      <div class="ac-wrap">
+        <input type="text" class="ac-input" id="edit-proj-ac" placeholder="Name oder Firma..." oninput="acSearch('edit-proj-ac','edit-proj-drop','edit-proj-val')" onfocus="acSearch('edit-proj-ac','edit-proj-drop','edit-proj-val')" onblur="setTimeout(()=>acHide('edit-proj-drop'),200)" autocomplete="off">
+        <input type="hidden" id="edit-proj-val">
+        <div class="ac-drop" id="edit-proj-drop"></div>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="f" style="margin:0"><label>Datum</label><input type="date" id="edit-date"></div>
+      <div class="f" style="margin:0"><label>Gesprächspartner</label><input type="text" id="edit-contact" placeholder="Name..." autocomplete="off"></div>
+    </div>
+    <div class="g3" style="margin-bottom:10px">
+      <div class="f" style="margin:0"><label>Von</label><input type="time" id="edit-from"></div>
+      <div class="f" style="margin:0"><label>Bis</label><input type="time" id="edit-to"></div>
+      <div class="f" style="margin:0"><label>Std. (manuell)</label><input type="number" id="edit-hrs" placeholder="0.5" step="0.25" min="0"></div>
+    </div>
+    <div class="f"><label>Beschreibung</label><textarea id="edit-desc" style="min-height:80px"></textarea></div>
+    <div class="toggle-row" style="margin-bottom:14px">
+      <input type="checkbox" id="edit-bill" style="accent-color:var(--acc)">
+      <label for="edit-bill">Verrechenbar</label>
+    </div>
+    <div class="brow">
+      <button class="btn pri" onclick="saveEdit()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+        Speichern
+      </button>
+      <button class="btn dan" onclick="dismissEdit()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP MODAL -->
+<div class="modal-bg" id="wa-modal" onclick="closeWaModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span>WhatsApp erfassen</span>
+      <button class="modal-close" onclick="dismissWa()">✕</button>
+    </div>
+    <div class="call-name" id="wa-name"></div>
+    <div class="call-email" id="wa-client" style="margin-bottom:16px"></div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="f" style="margin:0">
+        <label>Minuten</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn sml" onclick="waAdjust(-1)">−</button>
+          <input type="number" id="wa-mins" value="3" min="1" max="120" style="width:60px;text-align:center;font-family:var(--mono);font-size:18px;padding:8px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;color:var(--tx)">
+          <button class="btn sml" onclick="waAdjust(1)">+</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn sml" onclick="waSetMins(1)">1</button>
+          <button class="btn sml" onclick="waSetMins(2)">2</button>
+          <button class="btn sml" onclick="waSetMins(3)">3</button>
+          <button class="btn sml" onclick="waSetMins(5)">5</button>
+          <button class="btn sml" onclick="waSetMins(10)">10</button>
+        </div>
+      </div>
+      <div class="f" style="margin:0">
+        <label>Monat</label>
+        <select id="wa-period">
+          <option value="">– kein –</option>
+          <option value="05/2026" selected>Mai 2026</option>
+          <option value="04/2026">April 2026</option>
+          <option value="03/2026">März 2026</option>
+          <option value="2025">JA 2025</option>
+        </select>
+        <div class="toggle-row" style="margin-top:8px">
+          <input type="checkbox" id="wa-bill" checked style="accent-color:var(--acc)">
+          <label for="wa-bill">Verrechenbar</label>
+        </div>
+      </div>
+    </div>
+    <div class="f" style="margin-bottom:14px">
+      <label>Details (optional)</label>
+      <input type="text" id="wa-desc" placeholder="Kurze Beschreibung..." autocomplete="off">
+    </div>
+    <div class="brow">
+      <button class="btn pri" onclick="saveWa()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+        Speichern
+      </button>
+      <button class="btn dan" onclick="dismissWa()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CONTACTS MODAL -->
+<div class="modal-bg" id="contacts-modal" onclick="closeContactsModal(event)">
+  <div class="contacts-modal">
+    <div class="modal-title">
+      <span id="contacts-modal-title">Ansprechpartner</span>
+      <button class="modal-close" onclick="dismissContacts()">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:12px" id="contacts-firm-name"></div>
+      <div id="contacts-list"></div>
+    </div>
+    <div style="border-top:1px solid var(--b1);padding-top:14px">
+      <div class="slabel" style="margin-bottom:10px">Neuer Ansprechpartner</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f" style="margin:0"><label>Name *</label><input type="text" id="new-contact-name" placeholder="Vorname Nachname" autocomplete="off"></div>
+        <div class="f" style="margin:0"><label>Rolle</label><input type="text" id="new-contact-role" placeholder="Geschäftsführer..." autocomplete="off"></div>
+      </div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="f" style="margin:0"><label>E-Mail</label><input type="email" id="new-contact-email" placeholder="name@firma.de" autocomplete="off"></div>
+        <div class="f" style="margin:0"><label>Telefon</label><input type="tel" id="new-contact-phone" placeholder="+49 ..." autocomplete="off"></div>
+      </div>
+      <button class="btn pri" onclick="addContact()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+        Hinzufügen
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CALL MODAL -->
+<div class="modal-bg" id="call-modal" onclick="closeCallModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Anruf-Timer</span>
+      <button class="modal-close" onclick="dismissCall()">✕</button>
+    </div>
+    <div class="call-name" id="cm-name"></div>
+    <div class="call-email" id="cm-email"></div>
+    <div class="call-timer" id="cm-timer">0:00:00</div>
+    <div style="margin-bottom:14px">
+      <div class="f"><label>Projekt / Abrechnung</label>
+        <div class="ac-wrap">
+          <input type="text" class="ac-input" id="cm-proj-ac" placeholder="Name oder Firma tippen..." oninput="acSearch('cm-proj-ac','cm-proj-drop','cm-proj-val')" onfocus="acSearch('cm-proj-ac','cm-proj-drop','cm-proj-val')" onblur="setTimeout(()=>acHide('cm-proj-drop'),200)" autocomplete="off" autocorrect="off">
+          <input type="hidden" id="cm-proj-val">
+          <div class="ac-drop" id="cm-proj-drop"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="font-size:11px;color:var(--tx2);font-weight:500;display:block;margin-bottom:5px">Tätigkeitsart</label>
+        <div class="task-chips" id="cm-task-chips">
+          <button class="task-chip sel" onclick="selectCmTask(this,'Telefonat')">Telefonat</button>
+          <button class="task-chip" onclick="selectCmTask(this,'Beratung')">Beratung</button>
+          <button class="task-chip" onclick="selectCmTask(this,'FiBu')">FiBu</button>
+          <button class="task-chip" onclick="selectCmTask(this,'Lohn')">Lohn</button>
+          <button class="task-chip" onclick="selectCmTask(this,'Sonstiges')">Sonstiges</button>
+        </div>
+        <input type="hidden" id="cm-task-type" value="Telefonat">
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f" style="margin:0"><label>Monat</label>
+          <select id="cm-period">
+            <option value="">– kein Zeitraum –</option>
+            <option value="05/2026">Mai 2026</option>
+            <option value="04/2026">April 2026</option>
+            <option value="03/2026">März 2026</option>
+            <option value="2025">Jahresabschluss 2025</option>
+          </select>
+        </div>
+        <div class="f" style="margin:0"><label>Details</label><input type="text" id="cm-desc" placeholder="Weitere Details..."></div>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="cm-bill" checked style="accent-color:var(--acc)">
+        <label for="cm-bill">Verrechenbar</label>
+      </div>
+    </div>
+    <div class="brow">
+      <button class="btn pri" onclick="saveCall()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>Eintrag speichern
+      </button>
+      <button class="btn dan" onclick="dismissCall()">Verwerfen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS=['#c8f060','#60c8f0','#f0a060','#a060f0','#f06090','#60f0a0','#f06060','#f0e060','#8090a0'];
+const SEED = [{"id": "imported_0", "name": "Alfons Huber", "client": "Alfons Huber GmbH & Co. KG", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90.0, "budget": 0, "color": "#c8f060"}, {"id": "imported_1", "name": "Alfons Huber", "client": "Alfons Huber Verwaltungs GmbH", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90.0, "budget": 0, "color": "#60c8f0"}, {"id": "imported_2", "name": "Sebastian Altmann", "client": "Altmann Sebastian", "email": "altmann_sebastian@gmx.de", "phone": "+49 170 5549556", "rate": 90.0, "budget": 0, "color": "#f0a060"}, {"id": "imported_3", "name": "Andreas Wahrlich", "client": "axcon Steuerberatung GmbH", "email": "a.wahrlich@axcon-steuerberatung.de", "phone": "+49 173 3625106", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_4", "name": "Stefan Biehl", "client": "axcon Unternehmensberat. GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_5", "name": "Stefan Biehl", "client": "axcon Verwaltungs- und Beteiligungs Holing GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_6", "name": "Jana Beyer", "client": "Beyer Jana", "email": "jana.beyer2@icloud.com", "phone": "+49 175 4736018", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_7", "name": "Robert Biehl", "client": "Biehl Bau GmbH", "email": "info@biehl-bau.de", "phone": "+49 171 7470614", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_8", "name": "Robert Biehl", "client": "Biehl Maschienenverleih UG", "email": "info@biehl-bau.de", "phone": "+49 171 7470614", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_9", "name": "Maxi Bölsterl", "client": "Bölsterl Maximilian", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_10", "name": "Viktor Brehm", "client": "Brehm Viktor", "email": "viktor.brehm@schlaf-platz.com", "phone": "0160 95460613", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_11", "name": "Harry Höhne", "client": "Egger & Höhne GmbH", "email": "egger-hoehne@t-online.de", "phone": "+49 172 9530395", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_12", "name": "Johannes Wimmer", "client": "Egger & Höhne Hausbau GmbH", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_13", "name": "Johannes Wimmer", "client": "Egger & Höhne Vermögensv. Beteil. Hold. GmbH", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_14", "name": "Johann Falter", "client": "Falter Naturprodukte GmbH", "email": "johann.falter@falter-naturprodukte.de", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_15", "name": "Johanna Eichenmüller", "client": "GD Consulting GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_16", "name": "Claus Geiger", "client": "Geiger Claus", "email": "geiger.metallbau@gmail.com", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_17", "name": "Thomas Höllthaler", "client": "GTJ - Beteiligungs GmbH", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_18", "name": "Johann Falter", "client": "HANS Holding GmbH", "email": "johann.falter@falter-naturprodukte.de", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_19", "name": "Hakan Ozan", "client": "Havo Projektbau GmbH", "email": "info@havoprojektbau.de", "phone": "+49 160 7546433", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_20", "name": "Thomas Höllthaler", "client": "Höllthaler Thomas", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_21", "name": "Thomas Höllthaler", "client": "Höllthaler Thomas & Verena GbR", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_22", "name": "Verena Höllthaler", "client": "Höllthaler Verena", "email": "kanzlei@dieerbrechtsanwaeltin.de", "phone": "+49 1514 3108326", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_23", "name": "Alfons Huber", "client": "Huber PV GbR", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_24", "name": "Johanna Eichenmüller", "client": "ICA GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_25", "name": "Stefan Biehl", "client": "Innauenstr. 21 eGbR", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_26", "name": "Johanna Eichenmüller", "client": "NeoCore Capital GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_27", "name": "Matthias Hafenrichter", "client": "NeoCore Finance GmbH", "email": "m.hafenrichter@neocore.finance", "phone": "+49 176 21302212", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_28", "name": "Nicole Oberberger", "client": "Oberberger Nicole", "email": "mail@nicole-oberberger.de", "phone": "+49 177 8111260", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_29", "name": "Stefan Biehl", "client": "Radecker Consulting GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_30", "name": "Franzi Schweiger", "client": "Schweiger² GmbH", "email": "franzi@schweiger2.de", "phone": "+49 160 96015177", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_31", "name": "Sandra Falter", "client": "Solardach GmbH", "email": "info@solardachgmbh.de", "phone": "+49 171 6496502", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_32", "name": "Johannes Wimmer", "client": "Wimmer Johannes", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_33", "name": "Christian Höllich", "client": "NeoCore Capital München GmbH", "email": "c.hoellich@neocore.capital", "phone": "+49 1514 4570004", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_34", "name": "Christian Höllich", "client": "Selyem Holding GmbH", "email": "c.hoellich@neocore.capital", "phone": "+49 1514 4570004", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_35", "name": "Maxi Bölsterl", "client": "WB Immo Pro GmbH", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_36", "name": "Maxi Bölsterl", "client": "Adlsteiner eGbR", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_37", "name": "Maxi Bölsterl", "client": "Bölsterl Value Holding GmbH", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_38", "name": "Maxi Bölsterl", "client": "Palmberg eGbR", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_39", "name": "Stefan Wimmer", "client": "Wimmer Value Holding GmbH", "email": "wimmer.stefan163@gmail.com", "phone": "+49 170 8525397", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_40", "name": "Johanna Eichenmüller", "client": "NeoCore Assets GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_41", "name": "Johanna Eichenmüller", "client": "GD Group GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_42", "name": "Manuel Reitmeier", "client": "CapTide GmbH", "email": "manuel.reitmeier@captide.de", "phone": "+49 171 4832801", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_43", "name": "Jonas Dorsch", "client": "Dorsch Holding GmbH", "email": "j.dorsch@neocore.capital", "phone": "+49 170 3290569", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_44", "name": "Klein Daniel", "client": "Klein Daniel", "email": "daniel.klein@schwaebisch-hall.de", "phone": "+49 1522 2686176", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_45", "name": "Mark Michl", "client": "Marrvarak Holding UG", "email": "marrvark@web.de", "phone": "+49 176 23255748", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_46", "name": "Mark Michl", "client": "Michl Grundstücks GbR", "email": "marrvark@web.de", "phone": "+49 176 23255748", "rate": 90, "budget": 0, "color": "#60c8f0"}];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let S={projects:[],entries:[],timerStart:null};
+let timerSec=0,timerIv=null,callIv=null,callStart=null,callProjId=null;
+let activeFilter='all';
+let SB_URL='https://nadyxvzvddqhmwnugbbr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHl4dnp2ZGRxaG13bnVnYmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NzkyNjcsImV4cCI6MjA5NDI1NTI2N30.o-jBCSb_s4FNudixrlU4NojnhilpHuLut-Ize7FfN6o',cloudOK=false;
+
+
+// ─── BENUTZER SYSTEM
+
+function renderUserLinks(){
+  const el = document.getElementById('user-links');
+  if(!el||!CURRENT_IS_ADMIN) return;
+  const base = window.location.origin + window.location.pathname;
+  el.innerHTML = Object.entries(USERS).map(([key,u])=>{
+    const url = base+'?user='+key;
+    const ini = u.name.split(' ').map(w=>w[0]).join('').slice(0,2);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b1)">'
+      +'<div class="user-avatar" style="background:'+u.color+'">'+ini+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13px;font-weight:500">'+u.name+'</div>'
+      +'<div style="font-size:10px;color:var(--tx3)">'+u.rate+' €/Std.</div>'
+      +'<div style="font-size:10px;color:var(--tx3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+url+'</div>'
+      +'</div>'
+      +'<button class="btn sml" onclick="copyUserLink(&quot;'+key+'&quot;)">Kopieren</button>'
+      +'</div>';
+  }).join('');
+}
+
+function copyUserLink(key){
+  const base = window.location.origin + window.location.pathname;
+  navigator.clipboard.writeText(base+'?user='+key).then(()=>toast('✓ Link kopiert'));
+}
+const USERS = {
+  'stefan':   {name:'Stefan Biehl',     color:'#c8f060', admin:true,  rate:95,  seeRates:true},
+  'ingrid':   {name:'Ingrid Nicklbauer',color:'#60c8f0', admin:false, rate:65,  seeRates:false},
+  'carina':   {name:'Carina Huber',     color:'#f0a060', admin:false, rate:80,  seeRates:false},
+  'karin':    {name:'Karin Stockner',   color:'#a060f0', admin:false, rate:85,  seeRates:false},
+  'susi':     {name:'Susi Gratzl',      color:'#f06090', admin:false, rate:50,  seeRates:false},
+  'andreas':  {name:'Andreas Wahrlich', color:'#60f0a0', admin:false, rate:150, seeRates:true},
+};
+
+let CURRENT_USER = null;
+let CURRENT_IS_ADMIN = false;
+
+function detectUser(){
+  // Get user from URL parameter
+  const params = new URLSearchParams(window.location.search);
+  const userKey = params.get('user') || localStorage.getItem('zt_user') || 'stefan';
+  const user = USERS[userKey.toLowerCase()];
+  if(user){
+    CURRENT_USER = userKey.toLowerCase();
+    CURRENT_IS_ADMIN = user.admin;
+    localStorage.setItem('zt_user', CURRENT_USER);
+  } else {
+    // Unknown user - show user select
+    CURRENT_USER = 'stefan';
+    CURRENT_IS_ADMIN = true;
+  }
+  updateUserUI();
+}
+
+function updateUserUI(){
+  const user = USERS[CURRENT_USER];
+  if(!user) return;
+  // Update topbar
+  const topbar = document.querySelector('.topbar-brand');
+  if(topbar){
+    topbar.innerHTML = `Zeiterfassung <span class="user-badge" style="background:${user.color}22;color:${user.color};border:1px solid ${user.color}44;margin-left:8px">${user.name.split(' ')[0]}</span>`;
+  }
+  // Show/hide admin features
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    el.style.display = CURRENT_IS_ADMIN ? '' : 'none';
+  });
+  // Show/hide rates for users with permission
+  const canSeeRates = USERS[CURRENT_USER]?.seeRates||false;
+  document.querySelectorAll('.rates-only').forEach(el=>{
+    el.style.display = canSeeRates ? '' : 'none';
+  });
+}
+
+function getUserEntries(){
+  if(CURRENT_IS_ADMIN) return S.entries; // Admin sees all
+  // Non-admin: only show entries explicitly assigned to them
+  return S.entries.filter(e => e.userId === CURRENT_USER);
+}
+
+// ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
+function sbFetch(path,opts={}){
+  if(!SB_URL||!SB_KEY)return Promise.reject('no config');
+  const headers={
+    'Content-Type':'application/json',
+    'Prefer':'return=representation',
+    ...(opts.headers||{})
+  };
+  // Support both old anon key (eyJ...) and new publishable key (sb_publishable_...)
+  if(SB_KEY.startsWith('sb_publishable_')){
+    headers['Authorization']='Bearer '+SB_KEY;
+    headers['apikey']=SB_KEY;
+  } else {
+    headers['apikey']=SB_KEY;
+    headers['Authorization']='Bearer '+SB_KEY;
+  }
+  return fetch(SB_URL+'/rest/v1/'+path,{...opts,headers});
+}
+
+async function syncFromCloud(){
+  setSyncDot('spin');
+  try{
+    const prRes=await sbFetch('projects?select=*&order=created_at.asc');
+    if(!prRes.ok){const t=await prRes.text();throw new Error('Projektefehler '+prRes.status+': '+t);}
+    const enRes=await sbFetch('entries?select=*&order=created_at.asc');
+    if(!enRes.ok){const t=await enRes.text();throw new Error('Einträgefehler '+enRes.status+': '+t);}
+    const pr=await prRes.json();
+    const en=await enRes.json();
+    if(!Array.isArray(pr)||!Array.isArray(en))throw new Error('Ungültige Antwort');
+    S.projects=pr.map(p=>({id:p.id,name:p.name,client:p.client,email:p.email,phone:p.phone,rate:p.rate,budget:p.budget,color:p.color}));
+    S.entries=en.map(e=>({id:e.id,projectId:e.project_id,date:e.date,from:e.from_time,to:e.to_time,hours:e.hours,desc:e.description,billable:e.billable,billed:e.billed,amount:e.amount,isCall:e.is_call,userId:e.user_id||'stefan',userName:e.user_name||''}));
+    S.entries.sort((a,b)=>b.date.localeCompare(a.date));
+    saveLocal();
+    setSyncDot('ok');cloudOK=true;
+    refreshAll();
+    return true;
+  }catch(e){setSyncDot('err');cloudOK=false;console.error('sync error',e);toast('⚠ Fehler: '+e.message);return false;}
+}
+
+async function pushProject(p){
+  if(!SB_URL)return;
+  try{
+    await sbFetch('projects',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({id:p.id,name:p.name,client:p.client,email:p.email,phone:p.phone,rate:p.rate,budget:p.budget,color:p.color})});
+  }catch(e){console.error('push proj',e);}
+}
+
+async function pushEntry(e){
+  if(!SB_URL)return;
+  try{
+    await sbFetch('entries',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({id:e.id,project_id:e.projectId,date:e.date,from_time:e.from,to_time:e.to,hours:e.hours,description:e.desc,billable:e.billable,billed:e.billed,amount:e.amount,is_call:e.isCall||false,user_id:e.userId||'stefan',user_name:e.userName||''})});
+  }catch(e){console.error('push entry',e);}
+}
+
+async function deleteProjectCloud(id){
+  if(!SB_URL)return;
+  try{await sbFetch('projects?id=eq.'+id,{method:'DELETE'});}catch(e){}
+}
+
+async function deleteEntryCloud(id){
+  if(!SB_URL)return;
+  try{await sbFetch('entries?id=eq.'+id,{method:'DELETE'});}catch(e){}
+}
+
+async function updateEntryCloud(e){
+  if(!SB_URL)return;
+  try{await sbFetch('entries?id=eq.'+e.id,{method:'PATCH',body:JSON.stringify({billed:e.billed})});}catch(e){}
+}
+
+function setSyncDot(state){
+  const d=document.getElementById('sync-dot');
+  d.className='sync-dot'+(state?' '+state:'');
+  d.title=state==='ok'?'Cloud verbunden':state==='err'?'Cloud nicht erreichbar':state==='spin'?'Synchronisiert...':'Kein Cloud';
+}
+
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+function loadConfig(){
+  SB_URL=localStorage.getItem('sb_url')||'';
+  SB_KEY=localStorage.getItem('sb_key')||'';
+  if(SB_URL){
+    document.getElementById('cfg-url').value=SB_URL;
+    document.getElementById('cfg-key').value=SB_KEY;
+    document.getElementById('setup-url').value=SB_URL;
+    document.getElementById('setup-key').value=SB_KEY;
+  }
+}
+
+async function connectSupabase(){
+  const url=(document.getElementById('setup-url').value||'').trim().replace(/\/$/,'');
+  const key=(document.getElementById('setup-key').value||'').trim();
+  if(!url||!key)return toast('⚠ URL und Key eingeben');
+  SB_URL=url;SB_KEY=key;
+  toast('Verbinde...');
+  const ok=await syncFromCloud();
+  if(ok){
+    localStorage.setItem('sb_url',SB_URL);localStorage.setItem('sb_key',SB_KEY);
+    document.getElementById('cfg-url').value=SB_URL;
+    document.getElementById('cfg-key').value=SB_KEY;
+    document.getElementById('setup-screen').style.display='none';
+    toast('✓ Cloud verbunden!');
+    updateCloudStatusBox();
+  }else{
+    toast('⚠ Verbindung fehlgeschlagen – URL/Key prüfen');
+  }
+}
+
+async function saveCloudConfig(){
+  document.getElementById('setup-url').value=document.getElementById('cfg-url').value;
+  document.getElementById('setup-key').value=document.getElementById('cfg-key').value;
+  await connectSupabase();
+}
+
+async function manualSync(){
+  if(!SB_URL)return toast('⚠ Cloud nicht konfiguriert');
+  toast('Synchronisiere...');
+  await syncFromCloud();
+  toast(cloudOK?'✓ Synchronisiert':'⚠ Sync fehlgeschlagen');
+}
+
+function skipSetup(){document.getElementById('setup-screen').style.display='none';}
+
+function updateCloudStatusBox(){
+  const box=document.getElementById('cloud-status-box');
+  if(SB_URL&&cloudOK)box.innerHTML=`<span style="color:var(--acc)">● Cloud aktiv</span> · ${SB_URL.replace('https://','').split('.')[0]}...supabase.co`;
+  else if(SB_URL)box.innerHTML=`<span style="color:var(--dan)">● Verbindungsfehler</span>`;
+  else box.innerHTML=`<span style="color:var(--tx3)">● Kein Cloud konfiguriert</span>`;
+}
+
+// ─── LOCAL STORAGE ────────────────────────────────────────────────────────────
+function saveLocal(){try{localStorage.setItem('zt3',JSON.stringify(S));}catch(e){}}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+async function load(){
+  try{const d=localStorage.getItem('zt3');if(d){const p=JSON.parse(d);S=p;}}catch(e){}
+  if(!S.projects)S.projects=[];if(!S.entries)S.entries=[];
+  loadConfig();
+
+  // No auto-seed – use Import button in settings
+
+  // Credentials hardcoded - skip setup screen
+  document.getElementById('setup-screen').style.display='none';
+  if(SB_URL){
+    syncFromCloud(); // background sync
+  }
+
+  init();
+}
+
+function init(){
+  detectUser();
+  document.getElementById('top-date').textContent=new Date().toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
+  document.getElementById('t-date').value=today();
+  setNow();buildColors();refreshSelects();renderMandants();renderRecent();renderProjects();updateMetrics();updateCloudStatusBox();
+  if(!SB_URL)setSyncDot('');
+  if(S.timerStart){timerSec=Math.floor((Date.now()-S.timerStart)/1000);resumeT();}
+}
+
+function refreshAll(){refreshSelects();renderMandants();renderRecent();renderProjects();updateMetrics();renderEntries();}
+
+function today(){return new Date().toISOString().split('T')[0];}
+function setNow(){
+  // Use last entry's Bis time as Von, fallback to current time
+  const myEntries = getUserEntries();
+  const lastEntry = myEntries[0]; // Most recent entry
+  if(lastEntry && lastEntry.to && lastEntry.date === today()){
+    document.getElementById('t-from').value = lastEntry.to;
+  } else {
+    const n=new Date();
+    document.getElementById('t-from').value=pad(n.getHours())+':'+pad(n.getMinutes());
+  }
+}
+function pad(n){return String(n).padStart(2,'0');}
+function fmtH(h){const a=Math.floor(h),b=Math.round((h-a)*60);return`${a}:${pad(b)}`;}
+function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}.${m}.${y}`;}
+function getP(id){return S.projects.find(p=>p.id===id);}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+function weekStart(){const d=new Date(),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff)).toISOString().split('T')[0];}
+function emptyHTML(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>${msg}</div>`;}
+
+function goTab(tab,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('v-'+tab).classList.add('on');btn.classList.add('on');
+  if(tab==='entries'){
+    renderEntries();
+    const adminSection=document.getElementById('user-filter-section');
+    if(adminSection) adminSection.style.display=CURRENT_IS_ADMIN?'block':'none';
+  }
+  if(tab==='projects'){renderProjects();updateCloudStatusBox();renderUserLinks();}
+  if(tab==='phone')renderMandants();
+  if(tab==='email'){document.getElementById('email-list').innerHTML='';document.getElementById('email-status').textContent='';}
+}
+
+// ─── COLORS ───────────────────────────────────────────────────────────────────
+function buildColors(){
+  const el=document.getElementById('cpick');el._sel=COLORS[0];
+  el.innerHTML=COLORS.map((c,i)=>`<div class="csw${i===0?' sel':''}" style="background:${c}" onclick="pickColor(this,'${c}')"></div>`).join('');
+}
+function pickColor(el,c){document.querySelectorAll('.csw').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');document.getElementById('cpick')._sel=c;}
+
+// ─── SELECTS ──────────────────────────────────────────────────────────────────
+function refreshSelects(){
+  const opts=S.projects.map(p=>`<option value="${p.id}">${p.client||p.name}</option>`).join('');
+  ['b-proj'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML='<option value="">-- Projekt wählen --</option>'+opts;el.value=v;}});
+  const el=document.getElementById('f-proj');if(el)el.innerHTML='<option value="">Alle</option>'+opts;
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────────────
+function toggleTimer(){if(S.timerStart||timerIv){pauseT();}else{startT();}}
+function startT(){
+  S.timerStart=Date.now()-timerSec*1000;timerIv=setInterval(tickT,1000);
+  document.getElementById('lbl-start').textContent='Pause';
+  document.getElementById('ico-start').innerHTML='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  document.getElementById('btn-stop').style.display='inline-flex';
+  document.getElementById('tdisp').classList.add('run');document.getElementById('tsub').textContent='LÄUFT';
+  saveLocal();
+}
+function pauseT(){
+  timerSec=Math.floor((Date.now()-S.timerStart)/1000);clearInterval(timerIv);timerIv=null;S.timerStart=null;
+  document.getElementById('lbl-start').textContent='Weiter';
+  document.getElementById('ico-start').innerHTML='<polygon points="5 3 19 12 5 21 5 3"/>';
+  document.getElementById('tdisp').classList.remove('run');document.getElementById('tdisp').classList.add('paused');
+  document.getElementById('tsub').textContent='PAUSIERT';saveLocal();
+}
+function resumeT(){
+  timerIv=setInterval(tickT,1000);
+  document.getElementById('lbl-start').textContent='Pause';
+  document.getElementById('ico-start').innerHTML='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  document.getElementById('btn-stop').style.display='inline-flex';
+  document.getElementById('tdisp').classList.add('run');document.getElementById('tsub').textContent='LÄUFT';
+}
+function tickT(){
+  if(S.timerStart)timerSec=Math.floor((Date.now()-S.timerStart)/1000);
+  const h=Math.floor(timerSec/3600),m=Math.floor((timerSec%3600)/60),s=timerSec%60;
+  document.getElementById('tdisp').textContent=`${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+function stopSave(){
+  if(timerIv){clearInterval(timerIv);timerIv=null;}
+  document.getElementById('t-hrs').value=parseFloat((timerSec/3600).toFixed(2));
+  S.timerStart=null;timerSec=0;
+  document.getElementById('tdisp').textContent='00:00:00';
+  document.getElementById('tdisp').classList.remove('run','paused');
+  document.getElementById('tsub').textContent='';
+  document.getElementById('lbl-start').textContent='Starten';
+  document.getElementById('ico-start').innerHTML='<polygon points="5 3 19 12 5 21 5 3"/>';
+  document.getElementById('btn-stop').style.display='none';
+  saveLocal();
+}
+
+async function saveEntry(){
+  const pid=document.getElementById('t-proj-val')?document.getElementById('t-proj-val').value:document.getElementById('t-proj').value||'';
+  if(!pid)return toast('⚠ Bitte Projekt wählen');
+  const date=document.getElementById('t-date').value||today();
+  const from=document.getElementById('t-from').value,to=document.getElementById('t-to').value;
+  // Von/Bis hat IMMER Vorrang - Std.-Feld nur als Fallback
+  let h=0;
+  if(from&&to){
+    const[fh,fm]=from.split(':').map(Number);
+    const[th,tm]=to.split(':').map(Number);
+    const calc=((th*60+tm)-(fh*60+fm))/60;
+    if(calc>0) h=calc;
+  }
+  if(!h) h=parseFloat(document.getElementById('t-hrs').value)||0;
+  if(!h||h<=0)return toast('⚠ Stunden oder Von/Bis eingeben');
+  const p=getP(pid);const bill=document.getElementById('t-bill').checked;
+  const entry={id:Date.now().toString(),projectId:pid,date,from,to,hours:parseFloat(h.toFixed(4)),desc:buildDesc()||document.getElementById('t-desc').value.trim(),billable:bill,billed:false,amount:bill&&p?parseFloat((h*(USERS[CURRENT_USER]?.rate||p.rate)).toFixed(2)):0,userId:CURRENT_USER,userName:USERS[CURRENT_USER]?.name||CURRENT_USER};
+  S.entries.unshift(entry);saveLocal();
+  pushEntry(entry);
+  const savedBis = document.getElementById('t-to').value;
+  document.getElementById('t-hrs').value='';
+  document.getElementById('t-desc').value='';
+  document.getElementById('t-to').value='';
+  // Set Von to last Bis
+  if(savedBis) document.getElementById('t-from').value=savedBis;
+  else setNow();
+  renderRecent();updateMetrics();toast('✓ Eintrag gespeichert');
+}
+
+// ─── MANDANT / PHONE ──────────────────────────────────────────────────────────
+function renderMandants(){
+  const q=(document.getElementById('msearch')||{}).value||'';
+  const el=document.getElementById('mand-list');
+  let list=S.projects.filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase())||(p.client||'').toLowerCase().includes(q.toLowerCase()));
+  // Sort by last name of contact person (last word of name field)
+  list.sort((a,b)=>{
+    const lastName=n=>{const parts=(n||'').trim().split(' ');return parts[parts.length-1].toLowerCase();};
+    return lastName(a.name).localeCompare(lastName(b.name),'de');
+  });
+  if(!list.length){el.innerHTML='<li class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Keine Mandanten</li>';return;}
+  el.innerHTML=list.map(p=>{
+    const ini=(p.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const hrs=S.entries.filter(e=>e.projectId===p.id).reduce((s,e)=>s+e.hours,0);
+    return`<li class="mitem">
+      <div class="m-dot" style="background:${p.color}">${ini}</div>
+      <div class="m-info">
+        <div class="m-name">${p.name}</div>
+        <div class="m-email">${p.email||p.client||'–'} · ${fmtH(hrs)} Std.</div>
+      </div>
+      <div class="m-actions">
+        <button class="call-btn" onclick="openContacts('${p.id}')" title="Ansprechpartner" style="border-color:var(--b2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--tx2)" stroke-linecap="round" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        ${p.phone?`<a href="tel:${p.phone}" class="call-btn" style="color:var(--acc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.94 3.28 2 2 0 0 1 3.92 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
+        <button class="call-btn phone" onclick="startCall('${p.id}')" title="Anruf-Timer starten">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+        <button class="call-btn" onclick="startWa('${p.id}')" title="WhatsApp erfassen" style="border-color:rgba(37,211,102,.4);background:rgba(37,211,102,.08)">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" stroke="#25D366"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </button>
+      </div>
+    </li>`;
+  }).join('');
+}
+
+function startCall(projId){
+  const p=getP(projId);if(!p)return;
+  callProjId=projId;callStart=Date.now();
+  document.getElementById('cm-name').textContent=p.name;
+  document.getElementById('cm-email').textContent=p.email||p.client||'';
+  document.getElementById('cm-desc').value='Telefonat';
+  document.getElementById('cm-bill').checked=true;
+  refreshSelects();
+  if(document.getElementById('cm-proj-ac')){
+    document.getElementById('cm-proj-ac').value=p.client||p.name;
+    document.getElementById('cm-proj-val').value=projId;
+  } else {
+    document.getElementById('cm-proj').value=projId;
+  }
+  document.getElementById('call-modal').classList.add('show');
+  callIv=setInterval(()=>{
+    const sec=Math.floor((Date.now()-callStart)/1000);
+    const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+    document.getElementById('cm-timer').textContent=`${pad(h)}:${pad(m)}:${pad(s)}`;
+  },1000);
+}
+function closeCallModal(e){if(e.target===document.getElementById('call-modal'))dismissCall();}
+function dismissCall(){clearInterval(callIv);callIv=null;callStart=null;callProjId=null;document.getElementById('call-modal').classList.remove('show');document.getElementById('cm-timer').textContent='0:00:00';}
+
+async function saveCall(){
+  if(!callStart)return;
+  const pid=(document.getElementById('cm-proj-val')&&document.getElementById('cm-proj-val').value)||callProjId;
+  if(!pid)return toast('⚠ Bitte Projekt wählen');
+  const sec=Math.floor((Date.now()-callStart)/1000);
+  const hours=parseFloat((sec/3600).toFixed(4));
+  const p=getP(pid);const bill=document.getElementById('cm-bill').checked;
+  const now=new Date(),startDt=new Date(callStart);
+  const entry={id:Date.now().toString(),projectId:pid,date:today(),
+    from:pad(startDt.getHours())+':'+pad(startDt.getMinutes()),
+    to:pad(now.getHours())+':'+pad(now.getMinutes()),
+    hours:parseFloat(hours.toFixed(4)),
+    desc:(document.getElementById('cm-task-type').value||'Telefonat')+(document.getElementById('cm-period').value?' · '+document.getElementById('cm-period').value:'')+(document.getElementById('cm-desc').value?' · '+document.getElementById('cm-desc').value:''),
+    billable:bill,billed:false,
+    amount:bill&&p?parseFloat((hours*(USERS[CURRENT_USER]?.rate||p.rate)).toFixed(2)):0,isCall:true};
+  S.entries.unshift(entry);saveLocal();
+  pushEntry(entry);
+  dismissCall();renderRecent();updateMetrics();toast('✓ Anruf erfasst');
+}
+
+// ─── ENTRIES ──────────────────────────────────────────────────────────────────
+function setF(f,el){activeFilter=f;document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderEntries();}
+
+function applyQuickFilter(){
+  const val = document.getElementById('f-quick').value;
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  let from='', to='';
+
+  if(val==='today'){
+    from=todayStr; to=todayStr;
+  } else if(val==='yesterday'){
+    const y=new Date(now); y.setDate(y.getDate()-1);
+    from=to=y.toISOString().split('T')[0];
+  } else if(val==='week'){
+    const d=new Date(now); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
+    from=new Date(new Date(d).setDate(diff)).toISOString().split('T')[0];
+    to=todayStr;
+  } else if(val==='lastweek'){
+    const d=new Date(now); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
+    const monThis=new Date(new Date(d).setDate(diff));
+    const monLast=new Date(monThis); monLast.setDate(monLast.getDate()-7);
+    const sunLast=new Date(monLast); sunLast.setDate(sunLast.getDate()+6);
+    from=monLast.toISOString().split('T')[0];
+    to=sunLast.toISOString().split('T')[0];
+  } else if(val==='month'){
+    from=todayStr.slice(0,7)+'-01'; to=todayStr;
+  } else if(val==='lastmonth'){
+    const d=new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const last=new Date(now.getFullYear(), now.getMonth(), 0);
+    from=d.toISOString().split('T')[0];
+    to=last.toISOString().split('T')[0];
+  } else if(val==='custom'){
+    // Just clear and let user pick
+    from=''; to='';
+  } else {
+    from=''; to='';
+  }
+
+  document.getElementById('f-from').value=from;
+  document.getElementById('f-to').value=to;
+  renderEntries();
+}
+
+function filteredEntries(){
+  const fp=document.getElementById('f-proj').value;
+  const ff=document.getElementById('f-from').value;
+  const ft=document.getElementById('f-to').value;
+  const baseEntries = CURRENT_IS_ADMIN ? S.entries : getUserEntries();
+  return baseEntries.filter(e=>{
+    if(fp&&e.projectId!==fp)return false;
+    if(ff&&e.date<ff)return false;
+    if(ft&&e.date>ft)return false;
+    if(activeFilter==='billable'&&(!e.billable||e.billed))return false;
+    if(activeFilter==='billed'&&!e.billed)return false;
+    if(activeFilter==='nonbillable'&&e.billable)return false;
+    if(CURRENT_IS_ADMIN&&activeUserFilter!=='all'&&e.userId!==activeUserFilter)return false;
+    return true;
+  }).sort((a,b)=>{
+    // Sort by date desc, then by Von time asc within same day
+    if(a.date !== b.date) return b.date.localeCompare(a.date);
+    const at = a.from||'00:00', bt = b.from||'00:00';
+    return at.localeCompare(bt);
+  });
+}
+function entryHTML(e,del=false){
+  const p=getP(e.projectId);
+  const dot=p?`<span class="edot" style="background:${p.color}"></span>`:'';
+  const badge=e.billed?'<span class="badge ba">Abger.</span>':e.billable?'<span class="badge bv">Verr.</span>':'<span class="badge bn">Intern</span>';
+  const canSeeRates=USERS[CURRENT_USER]?.seeRates||false;
+  const amt=e.billable&&!e.billed&&canSeeRates?`<span class="eamt">${e.amount.toFixed(2)}€</span>`:'';
+  const dbtn=del?`<button class="xbtn" onclick="editEntry('${e.id}')" style="background:var(--acc2);color:var(--acc);margin-right:3px">✎</button><button class="xbtn" onclick="delEntry('${e.id}')">✕</button>`:'' ;
+  // Always show client name (Firma), not contact person
+  const projName=p?(p.client||p.name):'?';
+  // Von/Bis time display
+  const vonBis=(e.from&&e.to)?`<span style="font-family:var(--mono);font-size:11px;color:var(--tx3)">${e.from}–${e.to}</span>`:'';
+  // User badge
+  const userBadge=e.userId?`<span style="font-size:9px;font-family:var(--mono);padding:1px 6px;border-radius:10px;background:${(USERS[e.userId]?.color||'#888')+'22'};color:${USERS[e.userId]?.color||'var(--tx3)'};font-weight:600">${USERS[e.userId]?.name.split(' ')[0]||e.userId}</span>`:'';
+  return`<div class="eitem">
+    <div class="etop"><span class="eproj">${dot}${projName}</span><span style="display:flex;align-items:center;gap:6px">${vonBis}<span class="ehrs">${fmtH(e.hours)} Std.</span>${badge}${amt}${dbtn}</span></div>
+    <div class="ebot"><span class="edesc">${e.isCall?'📞 ':''}${e.desc||'–'}</span><span style="display:flex;align-items:center;gap:6px"><span class="edate">${fmtDate(e.date)}</span>${userBadge}</span></div>
+  </div>`;
+}
+function renderRecent(){
+  const el=document.getElementById('recent-list');
+  const r=getUserEntries().slice(0,5);
+  el.innerHTML=r.length?r.map(e=>entryHTML(e,false)).join(''):emptyHTML('Noch keine Einträge');
+}
+function renderEntries(){
+  const list=filteredEntries();const el=document.getElementById('elist');
+  el.innerHTML=list.length?list.map(e=>entryHTML(e,true)).join(''):emptyHTML('Keine Einträge');
+  const sumH=list.reduce((s,e)=>s+e.hours,0),sumA=list.filter(e=>e.billable).reduce((s,e)=>s+e.amount,0);
+  const showRates=USERS[CURRENT_USER]?.seeRates||false;
+  document.getElementById('esum').textContent=list.length?(showRates?`${fmtH(sumH)} Std. · ${sumA.toFixed(2)} € verrechenbar`:`${fmtH(sumH)} Std. gesamt`):'';
+}
+async function delEntry(id){
+  if(!confirm('Eintrag löschen?'))return;
+  S.entries=S.entries.filter(e=>e.id!==id);saveLocal();
+  deleteEntryCloud(id);
+  renderEntries();renderRecent();updateMetrics();
+}
+
+// ─── METRICS ─────────────────────────────────────────────────────────────────
+function updateMetrics(){
+  const t=today(),ws=weekStart(),ms=t.slice(0,7)+'-01';
+  const myEntries=getUserEntries();
+  document.getElementById('m-today').textContent=fmtH(myEntries.filter(e=>e.date===t).reduce((s,e)=>s+e.hours,0))+' Std.';
+  document.getElementById('m-week').textContent=fmtH(myEntries.filter(e=>e.date>=ws).reduce((s,e)=>s+e.hours,0))+' Std.';
+  document.getElementById('m-month').textContent=fmtH(myEntries.filter(e=>e.date>=ms).reduce((s,e)=>s+e.hours,0))+' Std.';
+  const canSeeRates2=USERS[CURRENT_USER]?.seeRates||false;
+  if(canSeeRates2){
+    document.getElementById('m-open').textContent=(CURRENT_IS_ADMIN?S.entries:myEntries).filter(e=>e.billable&&!e.billed).reduce((s,e)=>s+e.amount,0).toFixed(2)+' €';
+  } else {
+    document.getElementById('m-open').textContent='–';
+  }
+  if(typeof updateTeamSummary==='function') updateTeamSummary();
+}
+
+// ─── PROJEKTE ─────────────────────────────────────────────────────────────────
+async function saveProjekt(){
+  const name=document.getElementById('p-name').value.trim();if(!name)return toast('⚠ Name erforderlich');
+  const proj={id:Date.now().toString(),name,client:document.getElementById('p-client').value.trim(),email:document.getElementById('p-email').value.trim(),phone:document.getElementById('p-phone').value.trim(),rate:parseFloat(document.getElementById('p-rate').value)||0,budget:parseFloat(document.getElementById('p-budget').value)||0,color:document.getElementById('cpick')._sel||COLORS[0]};
+  S.projects.push(proj);saveLocal();
+  pushProject(proj);
+  ['p-name','p-client','p-email','p-phone','p-rate','p-budget'].forEach(id=>document.getElementById(id).value='');
+  buildColors();refreshSelects();renderProjects();renderMandants();toast('✓ Angelegt');
+}
+function renderProjects(){
+  const el=document.getElementById('plist');
+  if(!S.projects.length){el.innerHTML=emptyHTML('Noch keine Projekte');return;}
+  el.innerHTML=S.projects.map(p=>{
+    const hrs=S.entries.filter(e=>e.projectId===p.id).reduce((s,e)=>s+e.hours,0);
+    const open=S.entries.filter(e=>e.projectId===p.id&&e.billable&&!e.billed).reduce((s,e)=>s+e.amount,0);
+    const pct=p.budget?Math.min(100,Math.round(hrs/p.budget*100)):null;
+    return`<div class="pcard" style="border-left-color:${p.color}">
+      <div class="phead">
+        <div><div class="pname">${p.name}</div><div class="pclient">${p.client||p.email||''}</div></div>
+        <button class="btn sml dan" onclick="delProj('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+      </div>
+      <div class="pstats">
+        <div><div class="ps-v">${p.rate?p.rate+'€':'–'}</div><div class="ps-l">€/Std.</div></div>
+        <div><div class="ps-v">${fmtH(hrs)}</div><div class="ps-l">Erfasst</div></div>
+        <div><div class="ps-v" style="color:var(--acc)">${open.toFixed(0)}€</div><div class="ps-l">Offen</div></div>
+      </div>
+      ${p.phone?`<div style="margin-top:8px"><a href="tel:${p.phone}" style="font-family:var(--mono);font-size:11px;color:var(--inf)">${p.phone}</a></div>`:''}
+      ${pct!==null?`<div class="pbar"><div class="pfill" style="width:${pct}%;background:${p.color}"></div></div><div style="font-size:9px;color:var(--tx3);margin-top:3px;text-align:right;font-family:var(--mono)">${pct}% von ${p.budget} Std.</div>`:''}
+    </div>`;
+  }).join('');
+}
+async function delProj(id){
+  if(!confirm('Projekt löschen? Einträge bleiben.'))return;
+  S.projects=S.projects.filter(p=>p.id!==id);saveLocal();
+  deleteProjectCloud(id);
+  refreshSelects();renderProjects();renderMandants();
+}
+
+// ─── INVOICE ──────────────────────────────────────────────────────────────────
+function genInv(){
+  const pid=document.getElementById('b-proj').value;if(!pid)return toast('⚠ Bitte Projekt wählen');
+  const from=document.getElementById('b-from').value,to=document.getElementById('b-to').value;
+  const p=getP(pid);
+  const entries=S.entries.filter(e=>e.projectId===pid&&e.billable&&!e.billed&&(!from||e.date>=from)&&(!to||e.date<=to));
+  if(!entries.length)return toast('Keine offenen Einträge');
+  const netto=entries.reduce((s,e)=>s+e.amount,0),mwst=netto*0.19;
+  document.getElementById('inv-out').innerHTML=`
+    <div class="slabel">${p.name}${from||to?' · '+fmtDate(from)+' – '+fmtDate(to):''}</div>
+    <div class="card" style="padding:10px 14px;margin-bottom:10px">
+      ${entries.map(e=>`<div class="iline"><span class="il-date">${fmtDate(e.date)}</span><span class="il-desc">${e.isCall?'📞 ':''}${e.desc||'Beratung'}</span><span class="il-h">${fmtH(e.hours)} Std.</span><span class="il-amt">${e.amount.toFixed(2)} €</span></div>`).join('')}
+    </div>
+    <div class="card">
+      <div style="max-width:220px;margin-left:auto">
+        <div class="itotal isub"><span>Netto</span><span style="font-family:var(--mono)">${netto.toFixed(2)} €</span></div>
+        <div class="itotal isub"><span>MwSt. 19%</span><span style="font-family:var(--mono)">${mwst.toFixed(2)} €</span></div>
+        <div style="border-top:1px solid var(--b2);margin:6px 0"></div>
+        <div class="itotal"><span>Brutto</span><span style="font-family:var(--mono);color:var(--acc)">${(netto+mwst).toFixed(2)} €</span></div>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--b1);padding-top:12px">
+        <button class="btn pri" onclick="markBilled('${pid}','${from}','${to}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>Als abgerechnet markieren
+        </button>
+      </div>
+    </div>`;
+}
+async function markBilled(pid,from,to){
+  if(!confirm('Alle Einträge als abgerechnet markieren?'))return;
+  const toUpdate=S.entries.filter(e=>e.projectId===pid&&e.billable&&!e.billed&&(!from||e.date>=from)&&(!to||e.date<=to));
+  toUpdate.forEach(e=>{e.billed=true;updateEntryCloud(e);});
+  saveLocal();genInv();updateMetrics();toast('✓ Abgerechnet');
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function exportCSV(){
+  const list=filteredEntries();
+  const rows=[['Datum','Projekt','Mitarbeiter','Beschreibung','Anruf','Von','Bis','Minuten','Stunden_Dezimal','Verrechenbar','Betrag_EUR','Abgerechnet'],
+    ...list.map(e=>{const p=getP(e.projectId);const minuten=Math.round(e.hours*60);const dezimal=e.hours.toFixed(2).replace('.',',');return[e.date,p?p.client||p.name:'',e.userName||e.userId||'',e.desc,e.isCall?'Ja':'Nein',e.from,e.to,minuten,dezimal,e.billable?'Ja':'Nein',e.amount.toFixed(2).replace('.',','),e.billed?'Ja':'Nein'];})];
+  dl('data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(';')).join('\n')),'zeiterfassung_'+today()+'.csv');
+}
+function exportBackup(){dl('data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(S,null,2)),'zeiterfassung_backup_'+today()+'.json');}
+function importBackup(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const r=new FileReader();r.onload=e=>{try{S=JSON.parse(e.target.result);saveLocal();init();toast('✓ Importiert');}catch{toast('⚠ Ungültige Datei');}};r.readAsText(file);
+}
+function dl(href,name){const a=document.createElement('a');a.href=href;a.download=name;a.click();}
+
+
+
+
+
+// ─── TASK TYPES ──────────────────────────────────────────────────────────────
+function selectCmTask(el, type){
+  document.querySelectorAll('#cm-task-chips .task-chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('cm-task-type').value = type;
+}
+
+
+function setIntern(){
+  // Auto-uncheck billable when intern category selected
+  const bill = document.getElementById('t-bill');
+  if(bill) bill.checked = false;
+}
+function setBillable(){
+  const bill = document.getElementById('t-bill');
+  if(bill) bill.checked = true;
+}
+
+function selectTask(el, type){
+  document.querySelectorAll('#task-chips .task-chip, #task-chips ~ div .task-chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('t-task-type').value = type;
+  // Auto billable for mandant tasks
+  const isIntern = el.classList.contains('intern');
+  const bill = document.getElementById('t-bill');
+  if(bill) bill.checked = !isIntern;
+}
+
+function buildDesc(){
+  const task = document.getElementById('t-task-type').value;
+  const period = document.getElementById('t-period').value;
+  const contact = document.getElementById('t-contact') ? document.getElementById('t-contact').value.trim() : '';
+  const extra = document.getElementById('t-desc-extra').value.trim();
+  let parts = [];
+  if(task) parts.push(task);
+  if(period) parts.push(period);
+  if(contact) parts.push('mit '+contact);
+  if(extra) parts.push(extra);
+  return parts.join(' · ') || '';
+}
+
+
+// ─── USER FILTER (ADMIN) ─────────────────────────────────────────────────────
+let activeUserFilter = 'all';
+
+function setUserFilter(userId, el){
+  activeUserFilter = userId;
+  document.querySelectorAll('.user-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderEntries();
+}
+
+function updateTeamSummary(){
+  if(!CURRENT_IS_ADMIN) return;
+  const today = new Date().toISOString().split('T')[0];
+  const parts = Object.entries(USERS).map(([key,u])=>{
+    const hrs = S.entries.filter(e=>e.userId===key&&e.date===today).reduce((s,e)=>s+e.hours,0);
+    return hrs>0?`<span style="color:${u.color}">${u.name.split(' ')[0]}: ${fmtH(hrs)}</span>`:'';
+  }).filter(Boolean);
+  const el = document.getElementById('team-summary');
+  if(el) el.innerHTML = parts.join(' · ') || 'Noch keine Einträge heute';
+}
+
+// ─── EMAIL ZEITTRACKING ──────────────────────────────────────────────────────
+let emailCache = [];
+
+function getDateRange(range){
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  if(range==='today') return {after: today+'T00:00:00', before: null};
+  if(range==='yesterday'){
+    const y = new Date(now); y.setDate(y.getDate()-1);
+    const ys = y.toISOString().split('T')[0];
+    return {after: ys+'T00:00:00', before: today+'T00:00:00'};
+  }
+  if(range==='week'){
+    const w = new Date(now); w.setDate(w.getDate()-7);
+    return {after: w.toISOString().split('T')[0]+'T00:00:00', before: null};
+  }
+  return {after: null, before: null};
+}
+
+function findMandantByEmail(senderEmail){
+  if(!senderEmail) return null;
+  const em = senderEmail.toLowerCase();
+  return S.projects.find(p => p.email && p.email.toLowerCase() === em);
+}
+
+async function loadEmails(){
+  const btn = document.getElementById('email-load-btn');
+  const status = document.getElementById('email-status');
+  const list = document.getElementById('email-list');
+  btn.disabled = true;
+  status.textContent = 'Lade Outlook-Mails...';
+  list.innerHTML = '';
+
+  const range = document.getElementById('email-range').value;
+  const filterMode = document.getElementById('email-filter').value;
+  const {after, before} = getDateRange(range);
+
+  try {
+    // Call Anthropic API with M365 MCP to fetch emails
+    const prompt = `Fetch my recent Outlook emails${after?' after '+after:''} using the outlook_email_search tool. Return up to 30 emails. For each email return: sender email, subject, receivedDateTime, summary (first 100 chars of body). Return as JSON array with fields: sender, subject, receivedAt, summary. Only JSON, no other text.`;
+    
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        mcp_servers: [{type:'url', url:'https://microsoft365.mcp.claude.com/mcp', name:'m365'}],
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+
+    const data = await response.json();
+    const textBlock = data.content && data.content.find(b => b.type === 'text');
+    if(!textBlock) throw new Error('Keine Antwort');
+    
+    let emails = [];
+    try {
+      const clean = textBlock.text.replace(/```json|```/g,'').trim();
+      emails = JSON.parse(clean);
+    } catch(e) {
+      // Try to extract JSON array
+      const match = textBlock.text.match(/\[.*\]/s);
+      if(match) emails = JSON.parse(match[0]);
+    }
+
+    emailCache = emails;
+    
+    // Filter to mandants only if needed
+    let filtered = emails;
+    if(filterMode === 'mandants'){
+      filtered = emails.filter(e => findMandantByEmail(e.sender));
+    }
+
+    status.textContent = filtered.length + ' E-Mails gefunden' + (filterMode==='mandants'?' (nur Mandanten)':'');
+    renderEmailList(filtered);
+
+  } catch(e) {
+    console.error('Email load error', e);
+    status.textContent = '⚠ Fehler: ' + e.message;
+    btn.disabled = false;
+  }
+  btn.disabled = false;
+}
+
+function renderEmailList(emails){
+  const list = document.getElementById('email-list');
+  if(!emails.length){
+    list.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>Keine E-Mails gefunden</div>';
+    return;
+  }
+  list.innerHTML = emails.map((e, i) => {
+    const mandant = findMandantByEmail(e.sender);
+    const dt = e.receivedAt ? new Date(e.receivedAt) : null;
+    const timeStr = dt ? dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' + dt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '';
+    const dot = mandant ? `<span class="email-mandant-dot" style="background:${mandant.color}"></span>` : '';
+    const tag = mandant ? `<span class="email-mandant-tag">${dot}${mandant.client||mandant.name}</span>` : '';
+    return `<div class="email-card${mandant?' mandant':''}">
+      <div class="email-top">
+        <span class="email-from">${e.sender||'Unbekannt'}</span>
+        <span class="email-time">${timeStr}</span>
+      </div>
+      <div class="email-subject">${e.subject||'(kein Betreff)'}</div>
+      ${e.summary?`<div class="email-summary">${e.summary}</div>`:''}
+      <div class="email-actions">
+        ${tag}
+        <input type="number" class="email-time-input" id="email-min-${i}" value="5" min="1" max="120" title="Minuten">
+        <span style="font-size:11px;color:var(--tx3)">Min.</span>
+        ${mandant ? `
+          <button class="btn sml pri" onclick="addEmailEntry(${i})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+            Verrechenbar erfassen
+          </button>
+          <button class="btn sml" onclick="addEmailEntry(${i}, false)">Intern</button>
+        ` : `
+          <button class="btn sml" onclick="addEmailEntryManual(${i})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+            Erfassen
+          </button>
+        `}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addEmailEntry(idx, billable=true){
+  const email = emailCache[idx] || emailCache.find((_,i)=>i===idx);
+  if(!email) return;
+  const mandant = findMandantByEmail(email.sender);
+  if(!mandant) return addEmailEntryManual(idx);
+  const mins = parseFloat(document.getElementById('email-min-'+idx).value)||5;
+  const hours = parseFloat((mins/60).toFixed(4));
+  const dt = email.receivedAt ? new Date(email.receivedAt) : new Date();
+  const entry = {
+    id: Date.now().toString(),
+    projectId: mandant.id,
+    date: dt.toISOString().split('T')[0],
+    from: '', to: '',
+    hours,
+    desc: 'E-Mail: ' + (email.subject||'').slice(0,50),
+    billable,
+    billed: false,
+    amount: billable ? parseFloat((hours * mandant.rate).toFixed(2)) : 0,
+    isCall: false
+  };
+  S.entries.unshift(entry);
+  saveLocal();
+  pushEntry(entry);
+  // Mark as done
+  const card = document.querySelectorAll('.email-card')[idx];
+  if(card){
+    card.style.opacity='0.4';
+    card.querySelector('.email-actions').innerHTML='<span style="color:var(--acc);font-family:var(--mono);font-size:11px">✓ Erfasst ('+mins+' Min.)</span>';
+  }
+  updateMetrics();
+  toast('✓ E-Mail erfasst – ' + (mandant.client||mandant.name));
+}
+
+function addEmailEntryManual(idx){
+  const email = emailCache[idx];
+  if(!email) return;
+  // Switch to timer tab with pre-filled description
+  goTab('timer', document.querySelectorAll('.nav-btn')[0]);
+  document.getElementById('t-desc').value = 'E-Mail: ' + (email.subject||'').slice(0,50);
+  toast('Mandant wählen und speichern');
+}
+
+
+
+
+// ─── EINTRAG BEARBEITEN ──────────────────────────────────────────────────────
+let editEntryId = null;
+
+function editEntry(id){
+  const e = S.entries.find(x=>x.id===id);
+  if(!e) return;
+  editEntryId = id;
+  const p = getP(e.projectId);
+
+  // Fill form
+  document.getElementById('edit-date').value = e.date||'';
+  document.getElementById('edit-from').value = e.from||'';
+  document.getElementById('edit-to').value = e.to||'';
+  document.getElementById('edit-hrs').value = '';
+  document.getElementById('edit-desc').value = e.desc||'';
+  document.getElementById('edit-bill').checked = e.billable||false;
+
+  // Extract contact from desc if present (format: "... · mit Name · ...")
+  const contactMatch = (e.desc||'').match(/mit ([^·]+)/);
+  document.getElementById('edit-contact').value = contactMatch ? contactMatch[1].trim() : '';
+
+  // Set project autocomplete
+  if(p){
+    document.getElementById('edit-proj-ac').value = p.client||p.name;
+    document.getElementById('edit-proj-val').value = p.id;
+  }
+
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+async function saveEdit(){
+  const id = editEntryId;
+  const idx = S.entries.findIndex(x=>x.id===id);
+  if(idx<0) return;
+
+  const e = S.entries[idx];
+  const pid = document.getElementById('edit-proj-val').value || e.projectId;
+  const p = getP(pid);
+  const from = document.getElementById('edit-from').value;
+  const to = document.getElementById('edit-to').value;
+  const contact = document.getElementById('edit-contact').value.trim();
+
+  // Recalculate hours
+  let h = 0;
+  if(from && to){
+    const[fh,fm]=from.split(':').map(Number);
+    const[th,tm]=to.split(':').map(Number);
+    const calc=((th*60+tm)-(fh*60+fm))/60;
+    if(calc>0) h=calc;
+  }
+  if(!h) h = parseFloat(document.getElementById('edit-hrs').value)||e.hours;
+
+  const bill = document.getElementById('edit-bill').checked;
+
+  // Build new desc - inject contact if provided
+  let desc = document.getElementById('edit-desc').value.trim();
+  if(contact){
+    // Replace existing "mit X" or append
+    if(desc.match(/mit [^·]+/)){
+      desc = desc.replace(/mit [^·]+/, 'mit '+contact);
+    } else {
+      desc = desc + ' · mit ' + contact;
+    }
+  }
+
+  // Update entry
+  S.entries[idx] = {
+    ...e,
+    projectId: pid,
+    date: document.getElementById('edit-date').value || e.date,
+    from, to,
+    hours: parseFloat(h.toFixed(4)),
+    desc,
+    billable: bill,
+    amount: bill && p ? parseFloat((h*(USERS[CURRENT_USER]?.rate||p.rate)).toFixed(2)) : 0
+  };
+
+  saveLocal();
+  pushEntry(S.entries[idx]);
+  dismissEdit();
+  renderEntries();
+  renderRecent();
+  updateMetrics();
+  toast('✓ Eintrag aktualisiert');
+}
+
+function closeEditModal(e){
+  if(e.target === document.getElementById('edit-modal')) dismissEdit();
+}
+function dismissEdit(){
+  editEntryId = null;
+  document.getElementById('edit-modal').classList.remove('show');
+}
+
+// ─── ANSPRECHPARTNER / KONTAKTE ──────────────────────────────────────────────
+let contactsProjId = null;
+
+function openContacts(projId){
+  const p = getP(projId);
+  if(!p) return;
+  contactsProjId = projId;
+  document.getElementById('contacts-modal-title').textContent = p.client || p.name;
+  document.getElementById('contacts-firm-name').textContent = 'Ansprechpartner für ' + (p.client||p.name);
+  document.getElementById('new-contact-name').value = '';
+  document.getElementById('new-contact-role').value = '';
+  document.getElementById('new-contact-email').value = '';
+  document.getElementById('new-contact-phone').value = '';
+  renderContactsList(p);
+  document.getElementById('contacts-modal').classList.add('show');
+}
+
+function renderContactsList(p){
+  const el = document.getElementById('contacts-list');
+  const contacts = p.contacts || [];
+  // Always show main contact from project
+  const mainContact = {name: p.name, email: p.email, phone: p.phone, role: 'Hauptkontakt', isMain: true};
+  const allContacts = [mainContact, ...contacts];
+  el.innerHTML = allContacts.map((c,i) => {
+    const ini = (c.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="contact-item">
+      <div class="contact-avatar">${ini}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}${c.isMain?'<span style="font-size:9px;color:var(--tx3);margin-left:6px;font-family:var(--mono)">HAUPT</span>':''}</div>
+        <div class="contact-detail">${[c.role,c.email,c.phone].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div class="contact-actions">
+        ${c.phone?`<a href="tel:${c.phone}" class="call-btn sml" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="1.8" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.94 3.28 2 2 0 0 1 3.92 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
+        ${!c.isMain?`<button class="xbtn" onclick="removeContact(${i-1})">✕</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addContact(){
+  const name = document.getElementById('new-contact-name').value.trim();
+  if(!name) return toast('⚠ Name erforderlich');
+  const p = getP(contactsProjId);
+  if(!p) return;
+  if(!p.contacts) p.contacts = [];
+  p.contacts.push({
+    name,
+    role: document.getElementById('new-contact-role').value.trim(),
+    email: document.getElementById('new-contact-email').value.trim(),
+    phone: document.getElementById('new-contact-phone').value.trim()
+  });
+  saveLocal();
+  pushProject(p);
+  renderContactsList(p);
+  document.getElementById('new-contact-name').value = '';
+  document.getElementById('new-contact-role').value = '';
+  document.getElementById('new-contact-email').value = '';
+  document.getElementById('new-contact-phone').value = '';
+  toast('✓ Ansprechpartner hinzugefügt');
+}
+
+function removeContact(idx){
+  const p = getP(contactsProjId);
+  if(!p||!p.contacts) return;
+  p.contacts.splice(idx, 1);
+  saveLocal();
+  pushProject(p);
+  renderContactsList(p);
+}
+
+function closeContactsModal(e){
+  if(e.target === document.getElementById('contacts-modal')) dismissContacts();
+}
+function dismissContacts(){
+  contactsProjId = null;
+  document.getElementById('contacts-modal').classList.remove('show');
+}
+
+// ─── WHATSAPP ERFASSUNG ──────────────────────────────────────────────────────
+let waProjId = null;
+
+function startWa(projId){
+  const p = getP(projId);
+  if(!p) return;
+  waProjId = projId;
+  document.getElementById('wa-name').textContent = p.name;
+  document.getElementById('wa-client').textContent = p.client || p.email || '';
+  document.getElementById('wa-mins').value = 3;
+  document.getElementById('wa-desc').value = '';
+  document.getElementById('wa-bill').checked = true;
+  document.getElementById('wa-modal').classList.add('show');
+  setTimeout(()=>document.getElementById('wa-mins').select(), 100);
+}
+
+function closeWaModal(e){
+  if(e.target === document.getElementById('wa-modal')) dismissWa();
+}
+function dismissWa(){
+  waProjId = null;
+  document.getElementById('wa-modal').classList.remove('show');
+}
+function waAdjust(delta){
+  const el = document.getElementById('wa-mins');
+  el.value = Math.max(1, parseInt(el.value||0) + delta);
+}
+function waSetMins(n){
+  document.getElementById('wa-mins').value = n;
+}
+
+async function saveWa(){
+  if(!waProjId) return;
+  const p = getP(waProjId);
+  const mins = parseFloat(document.getElementById('wa-mins').value) || 3;
+  const hours = parseFloat((mins/60).toFixed(4));
+  const bill = document.getElementById('wa-bill').checked;
+  const period = document.getElementById('wa-period').value;
+  const desc = document.getElementById('wa-desc').value.trim();
+  const fullDesc = 'WhatsApp' + (period?' · '+period:'') + (desc?' · '+desc:'');
+  const entry = {
+    id: Date.now().toString(),
+    projectId: waProjId,
+    date: today(),
+    from: '', to: '',
+    hours,
+    desc: fullDesc,
+    billable: bill,
+    billed: false,
+    amount: bill && p ? parseFloat((hours * (USERS[CURRENT_USER]?.rate||p.rate)).toFixed(2)) : 0,
+    isCall: false,
+    userId: CURRENT_USER,
+    userName: USERS[CURRENT_USER]?.name||CURRENT_USER
+  };
+  S.entries.unshift(entry);
+  saveLocal();
+  pushEntry(entry);
+  dismissWa();
+  renderRecent();
+  updateMetrics();
+  toast('✓ WhatsApp erfasst – ' + mins + ' Min. · ' + (p.client||p.name));
+}
+
+// ─── MANDANT IMPORT ──────────────────────────────────────────────────────────
+const MANDANTS_IMPORT = [{"id": "imported_0", "name": "Alfons Huber", "client": "Alfons Huber GmbH & Co. KG", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90.0, "budget": 0, "color": "#c8f060"}, {"id": "imported_1", "name": "Alfons Huber", "client": "Alfons Huber Verwaltungs GmbH", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90.0, "budget": 0, "color": "#60c8f0"}, {"id": "imported_2", "name": "Sebastian Altmann", "client": "Altmann Sebastian", "email": "altmann_sebastian@gmx.de", "phone": "+49 170 5549556", "rate": 90.0, "budget": 0, "color": "#f0a060"}, {"id": "imported_3", "name": "Andreas Wahrlich", "client": "axcon Steuerberatung GmbH", "email": "a.wahrlich@axcon-steuerberatung.de", "phone": "+49 173 3625106", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_4", "name": "Stefan Biehl", "client": "axcon Unternehmensberat. GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_5", "name": "Stefan Biehl", "client": "axcon Verwaltungs- und Beteiligungs Holing GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_6", "name": "Jana Beyer", "client": "Beyer Jana", "email": "jana.beyer2@icloud.com", "phone": "+49 175 4736018", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_7", "name": "Robert Biehl", "client": "Biehl Bau GmbH", "email": "info@biehl-bau.de", "phone": "+49 171 7470614", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_8", "name": "Robert Biehl", "client": "Biehl Maschienenverleih UG", "email": "info@biehl-bau.de", "phone": "+49 171 7470614", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_9", "name": "Maxi Bölsterl", "client": "Bölsterl Maximilian", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_10", "name": "Viktor Brehm", "client": "Brehm Viktor", "email": "viktor.brehm@schlaf-platz.com", "phone": "0160 95460613", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_11", "name": "Harry Höhne", "client": "Egger & Höhne GmbH", "email": "egger-hoehne@t-online.de", "phone": "+49 172 9530395", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_12", "name": "Johannes Wimmer", "client": "Egger & Höhne Hausbau GmbH", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_13", "name": "Johannes Wimmer", "client": "Egger & Höhne Vermögensv. Beteil. Hold. GmbH", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_14", "name": "Johann Falter", "client": "Falter Naturprodukte GmbH", "email": "johann.falter@falter-naturprodukte.de", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_15", "name": "Johanna Eichenmüller", "client": "GD Consulting GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_16", "name": "Claus Geiger", "client": "Geiger Claus", "email": "geiger.metallbau@gmail.com", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_17", "name": "Thomas Höllthaler", "client": "GTJ - Beteiligungs GmbH", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_18", "name": "Johann Falter", "client": "HANS Holding GmbH", "email": "johann.falter@falter-naturprodukte.de", "phone": "+49 1514 6625739", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_19", "name": "Hakan Ozan", "client": "Havo Projektbau GmbH", "email": "info@havoprojektbau.de", "phone": "+49 160 7546433", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_20", "name": "Thomas Höllthaler", "client": "Höllthaler Thomas", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_21", "name": "Thomas Höllthaler", "client": "Höllthaler Thomas & Verena GbR", "email": "hoellthaler@t-online.de", "phone": "+49 1512 2346547", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_22", "name": "Verena Höllthaler", "client": "Höllthaler Verena", "email": "kanzlei@dieerbrechtsanwaeltin.de", "phone": "+49 1514 3108326", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_23", "name": "Alfons Huber", "client": "Huber PV GbR", "email": "f.huber@huber-geisberg.de", "phone": "+49 160 98912553", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_24", "name": "Johanna Eichenmüller", "client": "ICA GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_25", "name": "Stefan Biehl", "client": "Innauenstr. 21 eGbR", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_26", "name": "Johanna Eichenmüller", "client": "NeoCore Capital GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_27", "name": "Matthias Hafenrichter", "client": "NeoCore Finance GmbH", "email": "m.hafenrichter@neocore.finance", "phone": "+49 176 21302212", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_28", "name": "Nicole Oberberger", "client": "Oberberger Nicole", "email": "mail@nicole-oberberger.de", "phone": "+49 177 8111260", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_29", "name": "Stefan Biehl", "client": "Radecker Consulting GmbH", "email": "s.biehl@axcon-beratung.de", "phone": "+49 171 7456933", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_30", "name": "Franzi Schweiger", "client": "Schweiger² GmbH", "email": "franzi@schweiger2.de", "phone": "+49 160 96015177", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_31", "name": "Sandra Falter", "client": "Solardach GmbH", "email": "info@solardachgmbh.de", "phone": "+49 171 6496502", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_32", "name": "Johannes Wimmer", "client": "Wimmer Johannes", "email": "johannes.wimmer87@gmail.com", "phone": "+49 1511 1696861", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_33", "name": "Christian Höllich", "client": "NeoCore Capital München GmbH", "email": "c.hoellich@neocore.capital", "phone": "+49 1514 4570004", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_34", "name": "Christian Höllich", "client": "Selyem Holding GmbH", "email": "c.hoellich@neocore.capital", "phone": "+49 1514 4570004", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_35", "name": "Maxi Bölsterl", "client": "WB Immo Pro GmbH", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_36", "name": "Maxi Bölsterl", "client": "Adlsteiner eGbR", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_37", "name": "Maxi Bölsterl", "client": "Bölsterl Value Holding GmbH", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#60c8f0"}, {"id": "imported_38", "name": "Maxi Bölsterl", "client": "Palmberg eGbR", "email": "architektur@kontext-b.com", "phone": "+49 162 2027741", "rate": 90, "budget": 0, "color": "#f0a060"}, {"id": "imported_39", "name": "Stefan Wimmer", "client": "Wimmer Value Holding GmbH", "email": "wimmer.stefan163@gmail.com", "phone": "+49 170 8525397", "rate": 90, "budget": 0, "color": "#a060f0"}, {"id": "imported_40", "name": "Johanna Eichenmüller", "client": "NeoCore Assets GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#f06090"}, {"id": "imported_41", "name": "Johanna Eichenmüller", "client": "GD Group GmbH", "email": "j.eichenmueller@neocore.capital", "phone": "+49 176 24073751", "rate": 90, "budget": 0, "color": "#60f0a0"}, {"id": "imported_42", "name": "Manuel Reitmeier", "client": "CapTide GmbH", "email": "manuel.reitmeier@captide.de", "phone": "+49 171 4832801", "rate": 90, "budget": 0, "color": "#f06060"}, {"id": "imported_43", "name": "Jonas Dorsch", "client": "Dorsch Holding GmbH", "email": "j.dorsch@neocore.capital", "phone": "+49 170 3290569", "rate": 90, "budget": 0, "color": "#f0e060"}, {"id": "imported_44", "name": "Klein Daniel", "client": "Klein Daniel", "email": "daniel.klein@schwaebisch-hall.de", "phone": "+49 1522 2686176", "rate": 90, "budget": 0, "color": "#8090a0"}, {"id": "imported_45", "name": "Mark Michl", "client": "Marrvarak Holding UG", "email": "marrvark@web.de", "phone": "+49 176 23255748", "rate": 90, "budget": 0, "color": "#c8f060"}, {"id": "imported_46", "name": "Mark Michl", "client": "Michl Grundstücks GbR", "email": "marrvark@web.de", "phone": "+49 176 23255748", "rate": 90, "budget": 0, "color": "#60c8f0"}];
+
+async function importAllMandants(){
+  const btn=document.querySelector('[onclick="importAllMandants()"]');
+  const status=document.getElementById('import-status');
+  btn.disabled=true;
+  status.textContent='Importiere...';
+  
+  let ok=0,err=0;
+  for(const m of MANDANTS_IMPORT){
+    try{
+      // Add to local state if not exists
+      if(!S.projects.find(p=>p.id===m.id)){
+        S.projects.push(m);
+      } else {
+        const idx=S.projects.findIndex(p=>p.id===m.id);
+        S.projects[idx]=m;
+      }
+      // Push to Supabase
+      await pushProject(m);
+      ok++;
+      status.textContent=`${ok} von ${MANDANTS_IMPORT.length} importiert...`;
+    }catch(e){err++;}
+  }
+  
+  saveLocal();
+  refreshSelects();
+  renderProjects();
+  renderMandants();
+  btn.disabled=false;
+  status.textContent=`✓ ${ok} Mandanten importiert${err?' ('+err+' Fehler)':''}`;
+  toast('✓ '+ok+' Mandanten importiert');
+}
+
+// ─── AUTOCOMPLETE ────────────────────────────────────────────────────────────
+function acSearch(inputId, dropId, valId){
+  const q=(document.getElementById(inputId).value||'').toLowerCase().trim();
+  const drop=document.getElementById(dropId);
+  const matches=S.projects.filter(p=>
+    !q||
+    p.name.toLowerCase().includes(q)||
+    (p.client||'').toLowerCase().includes(q)||
+    (p.email||'').toLowerCase().includes(q)
+  ).slice(0,12);
+  if(!matches.length){drop.classList.remove('show');return;}
+  drop.innerHTML=matches.map(p=>`
+    <div class="ac-item" onmousedown="acSelect('${inputId}','${dropId}','${valId}','${p.id}','${(p.client||p.name).replace(/'/g,"\'")}')">
+      <div style="display:flex;align-items:center">
+        <span class="ac-dot" style="background:${p.color}"></span>
+        <div>
+          <div class="ac-item-name">${p.client||p.name}</div>
+          <div class="ac-item-client">${p.name}${p.email?' · '+p.email:''}</div>
+        </div>
+      </div>
+    </div>`).join('');
+  drop.classList.add('show');
+}
+function acSelect(inputId,dropId,valId,projId,label){
+  document.getElementById(inputId).value=label;
+  document.getElementById(valId).value=projId;
+  document.getElementById(dropId).classList.remove('show');
+}
+function acHide(dropId){
+  const el=document.getElementById(dropId);
+  if(el)el.classList.remove('show');
+}
+function acSetProject(inputId,valId,projId){
+  const p=getP(projId);
+  if(p&&document.getElementById(inputId)){
+    document.getElementById(inputId).value=p.client||p.name;
+    document.getElementById(valId).value=projId;
+  }
+}
+
+load();
+</script>
+</body>
+</html>
